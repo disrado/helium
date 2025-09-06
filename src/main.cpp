@@ -1,9 +1,9 @@
-#include "type_id.hpp"
-
 #include <print>
+
+#include "core/type_name.hpp"
 
 
 auto main() -> int
 {
-    std::println("helium");
+    std::println("type: {}", he::type_name<std::size_t>());
 }
