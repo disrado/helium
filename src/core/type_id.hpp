@@ -2,19 +2,37 @@
 
 #include <cstdint>
 
+
 namespace he
 {
+using id_type = uint32_t;
 
-using type_id_t = uint32_t;
-
-// type id cannot be a function-local static variable, because multiple template instantiations
-// in different libraries would result in duplicates. Use type name instead. Each major compiler
-// has it's own function signature format (std::source_location), parsers should be wirtten
-// accordingly
-
-// provide functionality to get type name. Should be parsed from function signature
-template<typename T>
-auto type_name() -> std::string
+namespace internal
 {
+struct sequential_index final
+{
+	[[nodiscard]] static auto value() noexcept -> id_type
+	{
+		static auto index{ id_type{} };
+		return index++;
+	}
+};
+
+template <typename T>
+[[nodiscard]] constexpr auto get_index_of() noexcept -> id_type
+{
+	static auto id{ internal::sequential_index::value() };
+	return id;
 }
+}
+
+
+template <typename T>
+struct type_index final
+{
+	[[nodiscard]] static constexpr auto value() noexcept -> id_type
+	{
+		return internal::get_index_of<T>();
+	}
+};
 }
