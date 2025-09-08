@@ -4,7 +4,6 @@
 #include <string_view>
 
 #include "core_macro.hpp"
-#include "type_id.hpp"
 
 
 namespace he
@@ -43,7 +42,7 @@ template <typename T>
     auto signature{ std::string_view{ std::source_location::current().function_name() } };
 
     signature.remove_prefix(signature.find(prefix) + prefix.length());
-    signature.remove_suffix(signature.length() - signature.find(suffix));
+    signature.remove_suffix(signature.length() - signature.find_last_of(suffix));
 
     return signature;
 }
