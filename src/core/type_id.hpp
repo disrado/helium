@@ -27,6 +27,16 @@ struct type_info final
 		return _type_name;
 	}
 
+	auto operator<=>(const type_info& other) const
+	{
+		return _type_index <=> other._type_index;
+	}
+
+	bool operator==(const type_info& other) const
+	{
+		return (*this <=> other) == 0;
+	}
+
 private:
 	id_type _type_index;
 	std::string_view _type_name;
