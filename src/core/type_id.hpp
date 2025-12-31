@@ -17,7 +17,7 @@ struct type_info final
 	{
 	}
 
-	[[nodiscard]] constexpr auto index() const noexcept -> id_type
+	[[nodiscard]] constexpr auto index() const noexcept -> index_type
 	{
 		return _type_index;
 	}
@@ -38,7 +38,7 @@ struct type_info final
 	}
 
 private:
-	id_type _type_index;
+	index_type _type_index;
 	std::string_view _type_name;
 };
 
