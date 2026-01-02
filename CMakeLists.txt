@@ -2,11 +2,12 @@ cmake_minimum_required(VERSION 4.0)
 
 project(helium LANGUAGES CXX)
 
-find_package(Catch2 3 REQUIRED)
-
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+
+add_subdirectory(deps)
 
 
 set(HEADERS
@@ -18,11 +19,11 @@ set(HEADERS
 set(SOURCES
 	src/main.cpp)
 
-add_executable(helium ${HEADERS} ${SOURCES})
+add_executable(run ${HEADERS} ${SOURCES})
 
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-add_library(helium_lib SHARED ${SOURCES})
+add_library(helium SHARED ${SOURCES})
 
 
 set(TESTS
@@ -32,5 +33,5 @@ set(TESTS
 
 add_executable(test_suite ${TESTS})
 
-target_link_libraries(test_suite PRIVATE Catch2::Catch2WithMain)
-target_link_libraries(test_suite PRIVATE helium_lib)
+target_link_libraries(test_suite PRIVATE helium)
+target_link_libraries(test_suite PRIVATE libcatch2)
