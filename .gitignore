@@ -1,3 +1,4 @@
 build
+deps/SDL
 .cache
 .idea

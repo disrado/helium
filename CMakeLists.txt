@@ -14,16 +14,18 @@ set(HEADERS
 	src/core/core_macro.hpp
 	src/core/type_index.hpp
 	src/core/type_name.hpp
-	src/core/type_id.hpp)
+	src/core/type_id.hpp
+	src/utils/logger/logger.hpp)
 
 set(SOURCES
-	src/main.cpp)
+	src/utils/logger/logger.cpp)
 
-add_executable(run ${HEADERS} ${SOURCES})
 
+add_executable(run ${HEADERS} src/main.cpp)
+target_link_libraries(run PRIVATE SDL3::SDL3)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-add_library(helium SHARED ${SOURCES})
+add_library(helium STATIC ${SOURCES})
 
 
 set(TESTS
