@@ -10,6 +10,7 @@ namespace he
 {
 namespace internal
 {
+
 #if GCC_COMPILER
 
     // gcc (15.2) function signature format:
@@ -58,6 +59,8 @@ template<typename T>
 ///
 /// Provides a name of the given type
 /// The way how compilers define function signatures are vastly different and you should not rely on it
+///
+/// !note, that on gcc compiler two different lambdas will have the same name
 ///
 template<typename T>
 struct type_name final
