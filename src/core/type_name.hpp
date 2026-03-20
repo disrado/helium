@@ -13,27 +13,27 @@ namespace internal
 
 #if GCC_COMPILER
 
-    // gcc (15.2) function signature format:
-    // constexpr std::string_view internal::parse_name_from_signature() [with T = int; std::string_view = std::basic_string_view<char>]
+// gcc (15.2) function signature format:
+// constexpr std::string_view internal::parse_name_from_signature() [with T = int; std::string_view = std::basic_string_view<char>]
 
-    constexpr const auto prefix{ std::string_view{ "= " } };
-    constexpr const auto suffix{ std::string_view{ ";" } };
+constexpr const auto prefix{ std::string_view{ "= " } };
+constexpr const auto suffix{ std::string_view{ ";" } };
 
 #elif CLANG_COMPILER
 
-    // clang (21.1.0) function signature format:
-    // std::string_view internal::parse_name_from_signature() [T = int]
+// clang (21.1.0) function signature format:
+// std::string_view internal::parse_name_from_signature() [T = int]
 
-    constexpr const auto prefix{ std::string_view { "= " } };
-    constexpr const auto suffix{ std::string_view { "]" } };
+constexpr const auto prefix{ std::string_view{ "= " } };
+constexpr const auto suffix{ std::string_view{ "]" } };
 
 #elif MSVC_COMPILER
 
-    // msvc (v19.43 VS17.13) function signature format:
-    // class std::basic_string_view<char,struct std::char_traits<char> > __cdecl internal::parse_name_from_signature<int>(void) noexcept
+// msvc (v19.43 VS17.13) function signature format:
+// class std::basic_string_view<char,struct std::char_traits<char> > __cdecl internal::parse_name_from_signature<int>(void) noexcept
 
-    constexpr const auto prefix{ std::string_view{ "e<" } };
-    constexpr const auto suffix{ std::string_view{ ">" } };
+constexpr const auto prefix{ std::string_view{ "e<" } };
+constexpr const auto suffix{ std::string_view{ ">" } };
 
 #endif
 
@@ -48,7 +48,7 @@ template <typename T>
     return signature;
 }
 
-template<typename T>
+template <typename T>
 [[nodiscard]] constexpr auto get_name_of() noexcept -> std::string_view
 {
     static const auto name{ internal::parse_name_from_signature<T>() };
@@ -62,7 +62,7 @@ template<typename T>
 ///
 /// !note, that on gcc compiler two different lambdas will have the same name
 ///
-template<typename T>
+template <typename T>
 struct type_name final
 {
     [[nodiscard]] static constexpr auto value() noexcept -> std::string_view
