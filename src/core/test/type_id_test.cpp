@@ -1,6 +1,6 @@
 #include "core/type_id.hpp"
 
-#include "catch_amalgamated.hpp"
+#include <catch2/catch_test_macros.hpp>
 
 
 TEST_CASE("type id", "[type_id]")

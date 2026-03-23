@@ -1,6 +1,6 @@
 #include "core/type_index.hpp"
 
-#include "catch_amalgamated.hpp"
+#include <catch2/catch_test_macros.hpp>
 
 
 TEST_CASE("type index", "[type_index]")
