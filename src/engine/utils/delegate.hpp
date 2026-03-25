@@ -111,14 +111,12 @@ auto delegate<args_ts...>::bind(std::shared_ptr<caller_t> caller, auto&& callbac
 template <typename... args_ts>
 auto delegate<args_ts...>::try_execute(args_ts... args) -> bool
 {
-    if (_callback)
+    if (!_callback)
     {
-        std::invoke(_callback, std::forward<args_ts>(args)...);
-
-        return true;
+        return false;
     }
 
-    return false;
+    return std::invoke(_callback, std::forward<args_ts>(args)...);
 }
 
 template <typename... args_ts>

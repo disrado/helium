@@ -117,6 +117,20 @@ TEST_CASE("delegate execution")
         REQUIRE(counter == 3);
     }
 
+    SECTION("execution with non-related owner")
+    {
+        struct owner final
+        {
+        };
+
+        REQUIRE_FALSE(he::delegate{ std::shared_ptr<owner>{ nullptr }, increment_counter }.try_execute());
+
+        const auto owner_instance{ std::make_shared<owner>() };
+
+        REQUIRE(he::delegate{ owner_instance, increment_counter }.try_execute());
+        REQUIRE(counter == 1);
+    }
+
     SECTION("execution after rebinding")
     {
         he::delegate delegate{ decrement_counter };
@@ -140,7 +154,7 @@ TEST_CASE("delegate execution")
     SECTION("verifying parameters consistency")
     {
         auto first_value{ 29ul };
-        bool second_value{ false };
+        auto second_value{ false };
 
         auto are_values_valid{ false };
 
