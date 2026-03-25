@@ -72,13 +72,6 @@ TEST_CASE("delegate")
 
         REQUIRE(delegate.is_bound());
     }
-
-    SECTION("instantiating from member function and shared owner")
-    {
-        he::delegate<> delegate{ std::make_shared<owner>(), &owner::callable };
-
-        REQUIRE(delegate.is_bound());
-    }
 }
 
 TEST_CASE("delegate execution")
@@ -130,11 +123,11 @@ TEST_CASE("delegate execution")
         {
         };
 
-        REQUIRE_FALSE(he::delegate{ std::shared_ptr<owner>{ nullptr }, increment_counter }.try_execute());
+        REQUIRE_FALSE(he::delegate{ std::weak_ptr<owner>{}, increment_counter }.try_execute());
 
         const auto owner_instance{ std::make_shared<owner>() };
 
-        REQUIRE(he::delegate{ owner_instance, increment_counter }.try_execute());
+        REQUIRE(he::delegate{ std::weak_ptr{ owner_instance }, increment_counter }.try_execute());
         REQUIRE(counter == 1);
     }
 

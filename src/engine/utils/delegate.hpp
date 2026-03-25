@@ -35,10 +35,6 @@ public:
         requires details::lifetime_bound_bindable<callable_t, arg_ts...>
     delegate(std::weak_ptr<caller_t> caller, callable_t&& callback);
 
-    template <typename caller_t, typename callable_t>
-        requires details::lifetime_bound_bindable<callable_t, arg_ts...>
-    delegate(std::shared_ptr<caller_t> caller, callable_t&& callback);
-
 public:
     template <typename callable_t>
         requires details::bindable<callable_t, arg_ts...>
@@ -47,10 +43,6 @@ public:
     template <typename caller_t, typename callable_t>
         requires details::lifetime_bound_bindable<callable_t, arg_ts...>
     auto bind(std::weak_ptr<caller_t> caller, callable_t&& callback) -> void;
-
-    template <typename caller_t, typename callable_t>
-        requires details::lifetime_bound_bindable<callable_t, arg_ts...>
-    auto bind(std::shared_ptr<caller_t> caller, callable_t&& callback) -> void;
 
     [[nodiscard]] auto try_execute(arg_ts... args) -> bool;
 
@@ -74,14 +66,6 @@ template <typename... arg_ts>
 template <typename caller_t, typename callable_t>
     requires details::lifetime_bound_bindable<callable_t, arg_ts...>
 delegate<arg_ts...>::delegate(std::weak_ptr<caller_t> caller, callable_t&& callback)
-{
-    bind(caller, std::forward<decltype(callback)>(callback));
-}
-
-template <typename... arg_ts>
-template <typename caller_t, typename callable_t>
-    requires details::lifetime_bound_bindable<callable_t, arg_ts...>
-delegate<arg_ts...>::delegate(std::shared_ptr<caller_t> caller, callable_t&& callback)
 {
     bind(caller, std::forward<decltype(callback)>(callback));
 }
@@ -122,14 +106,6 @@ auto delegate<arg_ts...>::bind(std::weak_ptr<caller_t> caller, callable_t&& call
 
         return false;
     };
-}
-
-template <typename... arg_ts>
-template <typename caller_t, typename callable_t>
-    requires details::lifetime_bound_bindable<callable_t, arg_ts...>
-auto delegate<arg_ts...>::bind(std::shared_ptr<caller_t> caller, callable_t&& callback) -> void
-{
-    bind(std::weak_ptr{ caller }, std::forward<decltype(callback)>(callback));
 }
 
 template <typename... arg_ts>
