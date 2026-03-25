@@ -3,7 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 
-namespace details
+namespace
 {
 
 auto free_function() -> void
@@ -52,7 +52,7 @@ TEST_CASE("delegate")
 
     SECTION("instantiating from free function")
     {
-        const auto delegate{ he::delegate{ std::weak_ptr{ std::make_shared<owner>() }, &details::free_function } };
+        const auto delegate{ he::delegate{ std::weak_ptr{ std::make_shared<owner>() }, &free_function } };
 
         REQUIRE(delegate.is_bound());
     }
@@ -123,9 +123,30 @@ TEST_CASE("delegate execution")
 
         REQUIRE_FALSE(he::delegate{ std::weak_ptr<owner>{}, increment_counter }.try_execute());
 
-        const auto owner_instance{ std::make_shared<owner>() };
+        const auto lifetime_owner{ std::make_shared<owner>() };
 
-        REQUIRE(he::delegate{ std::weak_ptr{ owner_instance }, increment_counter }.try_execute());
+        REQUIRE(he::delegate{ std::weak_ptr{ lifetime_owner }, increment_counter }.try_execute());
+        REQUIRE(counter == 1);
+    }
+
+    SECTION("execution prevented if lifetime owner is dead")
+    {
+        struct owner final
+        {
+        };
+
+        auto lifetime_owner{ std::make_shared<owner>() };
+
+        const auto delegate{ he::delegate{ std::weak_ptr{ lifetime_owner }, increment_counter } };
+
+        delegate.execute();
+
+        REQUIRE(counter == 1);
+
+        lifetime_owner.reset();
+
+        delegate.execute();
+
         REQUIRE(counter == 1);
     }
 
