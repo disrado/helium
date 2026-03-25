@@ -1,4 +1,4 @@
-#include "core/type_index.hpp"
+#include "engine/utils/type_traits/type_index.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

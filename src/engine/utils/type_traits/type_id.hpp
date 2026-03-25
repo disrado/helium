@@ -1,7 +1,7 @@
 #pragma once
 
-#include "type_index.hpp"
-#include "type_name.hpp"
+#include "engine/utils/type_traits/type_index.hpp"
+#include "engine/utils/type_traits/type_name.hpp"
 
 #include <utility>
 
@@ -17,7 +17,7 @@ struct type_info final
     {
     }
 
-    [[nodiscard]] constexpr auto index() const noexcept -> index_type
+    [[nodiscard]] constexpr auto index() const noexcept -> type_index_t
     {
         return _type_index;
     }
@@ -38,7 +38,7 @@ struct type_info final
     }
 
 private:
-    index_type _type_index;
+    type_index_t _type_index;
     std::string_view _type_name;
 };
 

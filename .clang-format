@@ -30,7 +30,7 @@ RequiresClausePosition: OwnLine
 RequiresExpressionIndentation: OuterScope
 
 QualifierAlignment: Custom
-QualifierOrder: [friend, constexpr, inline, static, const, volatile, type]
+QualifierOrder: [ friend, constexpr, inline, static, const, volatile, type ]
 CompactNamespaces: false
 EnumTrailingComma: Remove
 FixNamespaceComments: true
@@ -104,9 +104,9 @@ AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortCompoundRequirementOnASingleLine: true
 AllowShortEnumsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: None
+AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: Never
-AllowShortLambdasOnASingleLine: All
+AllowShortLambdasOnASingleLine: Inline
 AllowShortLoopsOnASingleLine: false
 AllowShortNamespacesOnASingleLine: false
 # since v23
@@ -131,7 +131,7 @@ BreakBeforeCloseBracketFunction: false
 BreakBeforeCloseBracketIf: false
 BreakBeforeCloseBracketLoop: false
 BreakBeforeCloseBracketSwitch: false
-BreakBeforeBraces: Custom
+BreakBeforeBraces: Allman
 BreakBeforeConceptDeclarations: Always
 BreakBeforeTemplateCloser: true
 BreakBeforeTernaryOperators: true
@@ -203,7 +203,7 @@ SortIncludes:
 #
 Cpp11BracedListStyle: false
 BraceWrapping:
-  AfterCaseLabel: false
+  AfterCaseLabel: true
   AfterClass: true
   AfterControlStatement: Always
   AfterEnum: true
@@ -241,10 +241,10 @@ BraceWrapping:
 #
 # reserved words
 #
-StatementAttributeLikeMacros: []
-StatementMacros: []
-TemplateNames: []
-TypeNames: []
-TypenameMacros: []
-VariableTemplates: []
+StatementAttributeLikeMacros: [ ]
+StatementMacros: [ ]
+TemplateNames: [ ]
+TypeNames: [ ]
+TypenameMacros: [ ]
+VariableTemplates: [ ]
 

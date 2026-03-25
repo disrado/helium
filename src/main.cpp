@@ -2,17 +2,19 @@
 
 #include <print>
 
+#include "engine/core/system.hpp"
+
 
 auto main() -> int
 {
-  if (auto ticks { SDL_Time{} }; SDL_GetCurrentTime(&ticks))
-  {
-      std::println("current time: {}", ticks);
-  }
-  else
-  {
-      std::println("failed to retrieve current time");
-  }
+    if (auto ticks{ SDL_Time{} }; SDL_GetCurrentTime(&ticks))
+    {
+        std::println("current time: {}", ticks);
+    }
+    else
+    {
+        std::println("failed to retrieve current time");
+    }
 
   return 0;
 }

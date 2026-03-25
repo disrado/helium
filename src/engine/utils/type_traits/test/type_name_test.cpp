@@ -1,4 +1,4 @@
-#include "core/type_name.hpp"
+#include "engine/utils/type_traits/type_name.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
