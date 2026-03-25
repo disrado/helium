@@ -1,13 +1,21 @@
 #pragma once
 
-#include <concepts>
-#include <memory>
 #include <functional>
+#include <memory>
 
 
 namespace he
 {
-template <typename... args_ts>
+namespace details
+{
+template <typename callable_t, typename... arg_ts>
+concept bindable = std::is_invocable_v<callable_t, arg_ts...>;
+
+template <typename callable_t, typename... arg_ts>
+concept lifetime_bound_bindable = std::is_member_function_pointer_v<callable_t> || bindable<callable_t, arg_ts...>;
+}
+
+template <typename... arg_ts>
 class delegate final
 {
 public:
@@ -19,79 +27,94 @@ public:
     delegate(const delegate&&) = default;
     delegate& operator =(const delegate&&) = default;
 
-    explicit delegate(std::invocable<args_ts...> auto&& callback);
+    template <typename callable_t>
+        requires details::bindable<callable_t, arg_ts...>
+    explicit delegate(callable_t&& callback);
 
-    template <typename caller_t>
-    delegate(std::weak_ptr<caller_t> caller, auto&& callback);
+    template <typename caller_t, typename callable_t>
+        requires details::lifetime_bound_bindable<callable_t, arg_ts...>
+    delegate(std::weak_ptr<caller_t> caller, callable_t&& callback);
 
-    template <typename caller_t>
-    delegate(std::shared_ptr<caller_t> caller, auto&& callback);
+    template <typename caller_t, typename callable_t>
+        requires details::lifetime_bound_bindable<callable_t, arg_ts...>
+    delegate(std::shared_ptr<caller_t> caller, callable_t&& callback);
 
 public:
-    auto bind(std::invocable<args_ts...> auto&& callback) -> void;
+    template <typename callable_t>
+        requires details::bindable<callable_t, arg_ts...>
+    auto bind(callable_t&& callback) -> void;
 
-    template <typename caller_t>
-    auto bind(std::weak_ptr<caller_t> caller, auto&& callback) -> void;
+    template <typename caller_t, typename callable_t>
+        requires details::lifetime_bound_bindable<callable_t, arg_ts...>
+    auto bind(std::weak_ptr<caller_t> caller, callable_t&& callback) -> void;
 
-    template <typename caller_t>
-    auto bind(std::shared_ptr<caller_t> caller, auto&& callback) -> void;
+    template <typename caller_t, typename callable_t>
+        requires details::lifetime_bound_bindable<callable_t, arg_ts...>
+    auto bind(std::shared_ptr<caller_t> caller, callable_t&& callback) -> void;
 
-    [[nodiscard]] auto try_execute(args_ts... args) -> bool;
+    [[nodiscard]] auto try_execute(arg_ts... args) -> bool;
 
-    auto execute(args_ts... args) -> void;
+    auto execute(arg_ts... args) -> void;
 
     auto is_bound() -> bool;
 
 private:
-    std::function<bool(args_ts...)> _callback;
+    std::function<bool(arg_ts...)> _callback;
 };
 
-template <typename... args_ts>
-delegate<args_ts...>::delegate(std::invocable<args_ts...> auto&& callback)
+template <typename... arg_ts>
+template <typename callable_t>
+    requires details::bindable<callable_t, arg_ts...>
+delegate<arg_ts...>::delegate(callable_t&& callback)
 {
     bind(std::forward<decltype(callback)>(callback));
 }
 
-template <typename... args_ts>
-template <typename caller_t>
-delegate<args_ts...>::delegate(std::weak_ptr<caller_t> caller, auto&& callback)
+template <typename... arg_ts>
+template <typename caller_t, typename callable_t>
+    requires details::lifetime_bound_bindable<callable_t, arg_ts...>
+delegate<arg_ts...>::delegate(std::weak_ptr<caller_t> caller, callable_t&& callback)
 {
     bind(caller, std::forward<decltype(callback)>(callback));
 }
 
-template <typename... args_ts>
-template <typename caller_t>
-delegate<args_ts...>::delegate(std::shared_ptr<caller_t> caller, auto&& callback)
+template <typename... arg_ts>
+template <typename caller_t, typename callable_t>
+    requires details::lifetime_bound_bindable<callable_t, arg_ts...>
+delegate<arg_ts...>::delegate(std::shared_ptr<caller_t> caller, callable_t&& callback)
 {
     bind(caller, std::forward<decltype(callback)>(callback));
 }
 
-template <typename... args_ts>
-auto delegate<args_ts...>::bind(std::invocable<args_ts...> auto&& callback) -> void
+template <typename... arg_ts>
+template <typename callable_t>
+    requires details::bindable<callable_t, arg_ts...>
+auto delegate<arg_ts...>::bind(callable_t&& callback) -> void
 {
-    _callback = [callback = std::forward<decltype(callback)>(callback)] (args_ts... args)
+    _callback = [callback = std::forward<decltype(callback)>(callback)] (arg_ts... args)
     {
-        std::invoke(callback, std::forward<args_ts>(args)...);
+        std::invoke(callback, std::forward<arg_ts>(args)...);
 
         return true;
     };
 }
 
-template <typename... args_ts>
-template <typename caller_t>
-auto delegate<args_ts...>::bind(std::weak_ptr<caller_t> caller, auto&& callback) -> void
+template <typename... arg_ts>
+template <typename caller_t, typename callable_t>
+    requires details::lifetime_bound_bindable<callable_t, arg_ts...>
+auto delegate<arg_ts...>::bind(std::weak_ptr<caller_t> caller, callable_t&& callback) -> void
 {
-    _callback = [weak_caller = caller, callback = std::forward<decltype(callback)>(callback)] (args_ts&&... args)
+    _callback = [caller, callback = std::forward<decltype(callback)>(callback)] (arg_ts&&... args)
     {
-        if (auto shared_caller{ weak_caller.lock() })
+        if (auto locked_caller{ caller.lock() })
         {
             if constexpr (std::is_member_function_pointer_v<decltype(callback)>)
             {
-                std::invoke(callback, *shared_caller, std::forward<args_ts>(args)...);
+                std::invoke(callback, *locked_caller, std::forward<arg_ts>(args)...);
             }
             else
             {
-                std::invoke(callback, std::forward<args_ts>(args)...);
+                std::invoke(callback, std::forward<arg_ts>(args)...);
             }
 
             return true;
@@ -101,35 +124,36 @@ auto delegate<args_ts...>::bind(std::weak_ptr<caller_t> caller, auto&& callback)
     };
 }
 
-template <typename... args_ts>
-template <typename caller_t>
-auto delegate<args_ts...>::bind(std::shared_ptr<caller_t> caller, auto&& callback) -> void
+template <typename... arg_ts>
+template <typename caller_t, typename callable_t>
+    requires details::lifetime_bound_bindable<callable_t, arg_ts...>
+auto delegate<arg_ts...>::bind(std::shared_ptr<caller_t> caller, callable_t&& callback) -> void
 {
     bind(std::weak_ptr{ caller }, std::forward<decltype(callback)>(callback));
 }
 
-template <typename... args_ts>
-auto delegate<args_ts...>::try_execute(args_ts... args) -> bool
+template <typename... arg_ts>
+auto delegate<arg_ts...>::try_execute(arg_ts... args) -> bool
 {
     if (!_callback)
     {
         return false;
     }
 
-    return std::invoke(_callback, std::forward<args_ts>(args)...);
+    return std::invoke(_callback, std::forward<arg_ts>(args)...);
 }
 
-template <typename... args_ts>
-auto delegate<args_ts...>::execute(args_ts... args) -> void
+template <typename... arg_ts>
+auto delegate<arg_ts...>::execute(arg_ts... args) -> void
 {
     if (_callback)
     {
-        std::invoke(_callback, std::forward<args_ts>(args)...);
+        std::invoke(_callback, std::forward<arg_ts>(args)...);
     }
 }
 
-template <typename... args_ts>
-auto delegate<args_ts...>::is_bound() -> bool
+template <typename... arg_ts>
+auto delegate<arg_ts...>::is_bound() -> bool
 {
     return static_cast<bool>(_callback);
 }

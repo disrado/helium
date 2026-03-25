@@ -5,11 +5,18 @@
 
 namespace details
 {
-auto free_function() -> void {}
+auto free_function() -> void
+{
+    //
+}
 }
 
 TEST_CASE("delegate")
 {
+    const auto lambda{ [] {} };
+
+    static_assert(std::is_invocable_v<decltype(lambda)>, "");
+
     struct owner final
     {
         auto callable() -> void {};
@@ -47,7 +54,7 @@ TEST_CASE("delegate")
 
     SECTION("instantiating from free function")
     {
-        he::delegate delegate{ &details::free_function };
+        he::delegate delegate{ std::weak_ptr{ std::make_shared<owner>() }, &details::free_function };
 
         REQUIRE(delegate.is_bound());
     }
@@ -68,7 +75,7 @@ TEST_CASE("delegate")
 
     SECTION("instantiating from member function and shared owner")
     {
-        he::delegate delegate{ std::make_shared<owner>(), &owner::callable };
+        he::delegate<> delegate{ std::make_shared<owner>(), &owner::callable };
 
         REQUIRE(delegate.is_bound());
     }
