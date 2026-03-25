@@ -8,7 +8,7 @@ namespace details
 auto free_function() -> void {}
 }
 
-TEST_CASE("delegate", "[delegate construction]")
+TEST_CASE("delegate")
 {
     struct owner final
     {
@@ -74,7 +74,7 @@ TEST_CASE("delegate", "[delegate construction]")
     }
 }
 
-TEST_CASE("delegate execution", "[delegate execution]")
+TEST_CASE("delegate execution")
 {
     auto counter{ 0l };
 
@@ -135,5 +135,22 @@ TEST_CASE("delegate execution", "[delegate execution]")
         delegate.execute();
         delegate.execute();
         REQUIRE(counter == 1);
+    }
+
+    SECTION("verifying parameters consistency")
+    {
+        auto first_value{ 29ul };
+        bool second_value{ false };
+
+        auto are_values_valid{ false };
+
+        const auto callback{ [=, &are_values_valid] (uint32_t first_argument, bool seconds_argument)
+        {
+            are_values_valid = first_value == first_argument && second_value == seconds_argument;
+        } };
+
+        he::delegate<uint32_t, bool>{ callback }.execute(first_value, second_value);
+
+        REQUIRE(are_values_valid);
     }
 }
