@@ -18,6 +18,8 @@ set(engine_headers
     src/engine/utils/type_traits/type_index.hpp
     src/engine/utils/type_traits/type_name.hpp
     src/engine/utils/type_traits/type_id.hpp
+    src/engine/utils/delegate/delegate.hpp
+    src/engine/utils/delegate/multicast_delegate.hpp
     src/engine/utils/log/log.hpp)
 
 set(engine_sources
@@ -47,7 +49,8 @@ set(TESTS
     src/engine/utils/type_traits/test/type_index_test.cpp
     src/engine/utils/type_traits/test/type_name_test.cpp
     src/engine/utils/type_traits/test/type_id_test.cpp
-    src/engine/utils/test/delegate_test.cpp
+    src/engine/utils/delegate/test/delegate_test.cpp
+    src/engine/utils/delegate/test/multicast_delegate_test.cpp
     src/engine/utils/log/test/log_test.cpp)
 
 add_executable(test_suite ${TESTS})

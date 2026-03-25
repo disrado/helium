@@ -1,22 +1,20 @@
-#include "engine/utils/delegate.hpp"
+#include "engine/utils/delegate/delegate.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 
 namespace details
 {
+
 auto free_function() -> void
 {
     //
 }
+
 }
 
 TEST_CASE("delegate")
 {
-    const auto lambda{ [] {} };
-
-    static_assert(std::is_invocable_v<decltype(lambda)>, "");
-
     struct owner final
     {
         auto callable() -> void {};
@@ -24,21 +22,21 @@ TEST_CASE("delegate")
 
     SECTION("instantiating via default constructor")
     {
-        he::delegate delegate{};
+        const auto delegate{ he::delegate{} };
 
         REQUIRE_FALSE(delegate.is_bound());
     }
 
     SECTION("instantiating from callable without parameters")
     {
-        he::delegate delegate{ [] {} };
+        const auto delegate{ he::delegate{ [] {} } };
 
         REQUIRE(delegate.is_bound());
     }
 
     SECTION("instantiating from callable with parameters")
     {
-        he::delegate<bool, uint32_t> delegate{ [] (bool, uint32_t) {} };
+        const auto delegate{ he::delegate<bool, uint32_t>{ [] (bool, uint32_t) {} } };
 
         REQUIRE(delegate.is_bound());
     }
@@ -47,28 +45,28 @@ TEST_CASE("delegate")
     {
         const auto lamda{ [] {} };
 
-        he::delegate delegate{ std::move(lamda) };
+        const auto delegate{ he::delegate{ std::move(lamda) } };
 
         REQUIRE(delegate.is_bound());
     }
 
     SECTION("instantiating from free function")
     {
-        he::delegate delegate{ std::weak_ptr{ std::make_shared<owner>() }, &details::free_function };
+        const auto delegate{ he::delegate{ std::weak_ptr{ std::make_shared<owner>() }, &details::free_function } };
 
         REQUIRE(delegate.is_bound());
     }
 
     SECTION("instantiating from std::function")
     {
-        he::delegate delegate{ std::function<void()>{} };
+        const auto delegate{ he::delegate{ std::function<void()>{} } };
 
         REQUIRE(delegate.is_bound());
     }
 
     SECTION("instantiating from member function weak owner")
     {
-        he::delegate delegate{ std::weak_ptr{ std::make_shared<owner>() }, &owner::callable };
+        const auto delegate{ he::delegate{ std::weak_ptr{ std::make_shared<owner>() }, &owner::callable } };
 
         REQUIRE(delegate.is_bound());
     }
@@ -96,7 +94,7 @@ TEST_CASE("delegate execution")
 
     SECTION("execution")
     {
-        he::delegate delegate{ increment_counter };
+        const auto delegate{ he::delegate{ increment_counter } };
 
         delegate.execute();
 
@@ -105,7 +103,7 @@ TEST_CASE("delegate execution")
 
     SECTION("multiple execution")
     {
-        he::delegate delegate{ increment_counter };
+        const auto delegate{ he::delegate{ increment_counter } };
 
         delegate.execute();
         REQUIRE(counter == 1);
@@ -133,7 +131,7 @@ TEST_CASE("delegate execution")
 
     SECTION("execution after rebinding")
     {
-        he::delegate delegate{ decrement_counter };
+        auto delegate{ he::delegate{ decrement_counter } };
 
         delegate.execute();
         REQUIRE(counter == -1);
@@ -153,8 +151,8 @@ TEST_CASE("delegate execution")
 
     SECTION("verifying parameters consistency")
     {
-        auto first_value{ 29ul };
-        auto second_value{ false };
+        constexpr auto first_value{ 29ul };
+        constexpr auto second_value{ false };
 
         auto are_values_valid{ false };
 
