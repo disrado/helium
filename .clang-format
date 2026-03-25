@@ -168,8 +168,8 @@ SpaceBeforeParensOptions:
   AfterNot: true
   AfterOverloadedOperator: true
   AfterPlacementOperator: true
-  AfterRequiresInClause: false
-  AfterRequiresInExpression: false
+  AfterRequiresInClause: true
+  AfterRequiresInExpression: true
 SpaceBeforeRangeBasedForLoopColon: false
 SpaceBeforeSquareBrackets: false
 SpaceInEmptyBraces: Never
