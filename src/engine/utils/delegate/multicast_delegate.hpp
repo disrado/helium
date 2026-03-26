@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "delegate.hpp"
+#include "engine/utils/delegate/delegate.hpp"
 
 #include <algorithm>
 
@@ -17,14 +17,14 @@ private:
 public:
     struct handle final
     {
-        uint32_t _id;
+        uint32_t id;
     };
 
 private:
     struct bound_entry final
     {
         handle _handle;
-        delegate<arg_ts...> _delegate;
+        delegate<arg_ts...> delegate;
     };
 
 public:
@@ -50,8 +50,6 @@ public:
     auto is_bound() const -> bool;
 
 private:
-    auto emplace_entry(delegate<arg_ts...>&& delegate) -> handle;
-
     auto generate_handle_id() -> handle_id_t;
 
 private:
@@ -65,7 +63,7 @@ template <typename callable_t>
     requires delegates::bindable<callable_t, arg_ts...>
 auto multicast_delegate<arg_ts...>::bind(callable_t&& callback) -> handle
 {
-    return emplace_entry(delegate<arg_ts...>{ std::forward<callable_t>(callback) });
+    return bind(delegate<arg_ts...>{ std::forward<callable_t>(callback) });
 }
 
 template <typename... arg_ts>
@@ -73,19 +71,33 @@ template <typename lifetime_owner_t, typename callable_t>
     requires delegates::lifetime_bound_bindable<callable_t, arg_ts...>
 auto multicast_delegate<arg_ts...>::bind(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback) -> handle
 {
-    return emplace_entry(delegate<arg_ts...>{ owner, std::forward<callable_t>(callback) });
+    return bind(delegate<arg_ts...>{ owner, std::forward<callable_t>(callback) });
 }
 
 template <typename... arg_ts>
 auto multicast_delegate<arg_ts...>::bind(he::delegate<arg_ts...> delegate) -> handle
 {
-    return emplace_entry(std::move(delegate));
+    const auto& [handle, bound_delegate]{
+        _bound_list.emplace_back(
+            bound_entry{
+                ._handle = {
+                    .id = generate_handle_id()
+                },
+                .delegate = std::move(delegate)
+            })
+    };
+
+    return handle;
 }
 
 template <typename... arg_ts>
 auto multicast_delegate<arg_ts...>::unbind(const handle& handle) -> bool
 {
-    return std::erase_if(_bound_list, [&handle = handle] (const auto& entry) { return entry._handle._id == handle._id; });
+    return std::erase_if(
+        _bound_list, [&handle = handle] (const auto& entry)
+        {
+            return entry._handle.id == handle.id;
+        });
 }
 
 template <typename... arg_ts>
@@ -99,7 +111,7 @@ auto multicast_delegate<arg_ts...>::execute(arg_ts&&... args) const -> bool
 {
     for (const auto& entry: _bound_list)
     {
-        entry._delegate.execute(std::forward<arg_ts>(args)...);
+        entry.delegate.execute(std::forward<arg_ts>(args)...);
     }
 
     return !_bound_list.empty();
@@ -109,22 +121,6 @@ template <typename... arg_ts>
 auto multicast_delegate<arg_ts...>::is_bound() const -> bool
 {
     return !_bound_list.empty();
-}
-
-template <typename... arg_ts>
-auto multicast_delegate<arg_ts...>::emplace_entry(delegate<arg_ts...>&& delegate) -> handle
-{
-    const auto& [handle, bound_delegate]{
-        _bound_list.emplace_back(
-            bound_entry{
-                ._handle = {
-                    ._id = generate_handle_id()
-                },
-                ._delegate = std::move(delegate)
-            })
-    };
-
-    return handle;
 }
 
 template <typename... arg_ts>
