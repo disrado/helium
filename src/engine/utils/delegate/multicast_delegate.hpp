@@ -28,9 +28,6 @@ private:
     };
 
 public:
-    multicast_delegate() = default;
-
-public:
     template <typename callable_t>
         requires delegates::bindable<callable_t, arg_ts...>
     auto bind(callable_t&& callback) -> handle;
@@ -53,7 +50,8 @@ private:
     auto generate_handle_id() -> handle_id_t;
 
 private:
-    handle_id_t _handle_counter{ 0ul };
+    // 1 prevents removal via default-initialized handles
+    handle_id_t _handle_counter{ 1ul };
 
     std::vector<bound_entry> _bound_list;
 };

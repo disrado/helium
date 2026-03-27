@@ -25,7 +25,7 @@ TEST_CASE("multicast_delegate")
         REQUIRE_FALSE(he::multicast_delegate{}.is_bound());
     }
 
-    SECTION("bind free function")
+    SECTION("binding free function")
     {
         auto delegate{ he::multicast_delegate{} };
 
@@ -34,7 +34,7 @@ TEST_CASE("multicast_delegate")
         REQUIRE(delegate.is_bound());
     }
 
-    SECTION("bind lambda")
+    SECTION("binding lambda")
     {
         auto delegate{ he::multicast_delegate{} };
 
@@ -43,7 +43,7 @@ TEST_CASE("multicast_delegate")
         REQUIRE(delegate.is_bound());
     }
 
-    SECTION("bind std::function")
+    SECTION("binding std::function")
     {
         auto delegate{ he::multicast_delegate{} };
 
@@ -52,7 +52,7 @@ TEST_CASE("multicast_delegate")
         REQUIRE(delegate.is_bound());
     }
 
-    SECTION("bind method with weak owner")
+    SECTION("binding method with weak owner")
     {
         auto delegate{ he::multicast_delegate{} };
 
@@ -63,7 +63,7 @@ TEST_CASE("multicast_delegate")
         REQUIRE(delegate.is_bound());
     }
 
-    SECTION("bind delegate")
+    SECTION("binding delegate")
     {
         auto delegate{ he::multicast_delegate<double, std::string&&>{} };
 
@@ -72,7 +72,7 @@ TEST_CASE("multicast_delegate")
         REQUIRE(delegate.is_bound());
     }
 
-    SECTION("unbind")
+    SECTION("unbinding")
     {
         auto delegate{ he::multicast_delegate{} };
 
@@ -91,7 +91,7 @@ TEST_CASE("multicast_delegate")
         REQUIRE_FALSE(delegate.is_bound());
     }
 
-    SECTION("unbind all")
+    SECTION("unbinding of all")
     {
         auto delegate{ he::multicast_delegate{} };
 
@@ -112,8 +112,14 @@ TEST_CASE("multicast_delegate execution")
 {
     auto counter{ 0l };
 
-    const auto increment_counter{ [&counter] { counter++; } };
-    const auto decrement_counter{ [&counter] { counter--; } };
+    const auto increment_counter{ [&counter]
+    {
+        counter++;
+    } };
+    const auto decrement_counter{ [&counter]
+    {
+        counter--;
+    } };
 
     SECTION("execution of unbound delegate")
     {
@@ -148,10 +154,26 @@ TEST_CASE("multicast_delegate execution")
 
         auto sample{ std::string{} };
 
-        delegate.bind([&sample] { sample += "c"; });
-        delegate.bind([&sample] { sample += "d"; });
-        delegate.bind([&sample] { sample += "z"; });
-        delegate.bind([&sample] { sample += "y"; });
+        delegate.bind(
+            [&sample]
+            {
+                sample += "c";
+            });
+        delegate.bind(
+            [&sample]
+            {
+                sample += "d";
+            });
+        delegate.bind(
+            [&sample]
+            {
+                sample += "z";
+            });
+        delegate.bind(
+            [&sample]
+            {
+                sample += "y";
+            });
 
         REQUIRE(delegate.execute());
 

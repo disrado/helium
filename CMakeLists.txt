@@ -51,6 +51,7 @@ set(TESTS
     src/engine/utils/type_traits/test/type_id_test.cpp
     src/engine/utils/delegate/test/delegate_test.cpp
     src/engine/utils/delegate/test/multicast_delegate_test.cpp
+    src/engine/utils/test/event_bus_test.cpp
     src/engine/utils/log/test/log_test.cpp)
 
 add_executable(test_suite ${TESTS})
