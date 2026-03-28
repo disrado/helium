@@ -42,7 +42,7 @@ public:
 
     auto execute(arg_ts... args) const -> void;
 
-    auto is_bound() const -> bool;
+    [[nodiscard]] auto is_bound() const -> bool;
 
 private:
     std::function<bool(arg_ts...)> _callback;

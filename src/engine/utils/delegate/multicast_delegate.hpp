@@ -44,7 +44,7 @@ public:
 
     auto execute(arg_ts&&... args) const -> bool;
 
-    auto is_bound() const -> bool;
+    [[nodiscard]] auto is_bound() const -> bool;
 
 private:
     auto generate_handle_id() -> handle_id_t;

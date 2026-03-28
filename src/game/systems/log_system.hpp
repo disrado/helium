@@ -1,8 +1,18 @@
 ﻿#pragma once
 
 #include "engine/core/system_base.hpp"
-#include "engine/utils/log/log.hpp"
+#include "engine/utils/log/message_queue.hpp"
 
+#include <chrono>
+#include <mutex>
+
+
+enum severity
+{
+    info,
+    warning,
+    error
+};
 
 namespace ne
 {
@@ -10,20 +20,23 @@ namespace ne
 class logging: public he::system_base
 {
 public:
-    logging();
-
-public:
     auto log(std::chrono::zoned_time<std::chrono::duration<std::chrono::system_clock::rep, std::chrono::system_clock::period>> time,
              severity severity,
              std::string_view tag,
              std::string_view message,
              const std::source_location& location) -> void;
 
+    auto set_severity_threshold(severity severity) -> void;
+
 protected:
     auto tick(double dt) -> void override;
 
 private:
-    he::log _log;
+    std::vector<std::string> _queue;
+
+    severity _threshold{ severity::info };
+
+    std::mutex _mutex;
 };
 
 template <severity severity>
