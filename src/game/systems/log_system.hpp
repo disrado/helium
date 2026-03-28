@@ -47,7 +47,6 @@ struct log_base
 template <typename... ts>
 struct info final: log_base<severity::info>
 {
-
     info(std::string_view tag, std::string_view format, ts&&... args, const std::source_location& location = std::source_location::current())
         : log_base{ tag, format, location, std::forward<ts>(args)... }
     {
@@ -61,7 +60,6 @@ info(std::string_view, std::string_view, ts&&...) -> info<ts...>;
 template <typename... ts>
 struct warning final: log_base<severity::warning>
 {
-
     warning(std::string_view tag, std::string_view format, ts&&... args, const std::source_location& location = std::source_location::current())
         : log_base{ tag, format, location, std::forward<ts>(args)... }
     {
@@ -72,24 +70,15 @@ template <typename... ts>
 warning(std::string_view, std::string_view, ts&&...) -> warning<ts...>;
 
 
-/// logs error
-/// \param tag
-///
 template <typename... ts>
 struct error final: log_base<severity::error>
 {
-    /// logs error
-    /// \param tag
-    ///
     error(std::string_view tag, std::string_view format, ts&&... args, const std::source_location& location = std::source_location::current())
         : log_base{ tag, format, location, std::forward<ts>(args)... }
     {
     }
 };
 
-/*
- * logs error
- */
 template <typename... ts>
 error(std::string_view, std::string_view, ts&&...) -> error<ts...>;
 
