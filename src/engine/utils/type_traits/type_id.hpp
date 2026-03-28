@@ -42,10 +42,16 @@ private:
     std::string_view _type_name;
 };
 
-template <typename T>
-[[nodiscard]] constexpr auto type_id() noexcept -> type_info
+template <typename t>
+[[nodiscard]] constexpr auto type_id() noexcept -> const type_info&
 {
-    static const auto info{ type_info{ std::in_place_type<T> } };
+    static const auto info{ type_info{ std::in_place_type<t> } };
     return info;
+}
+
+template <typename t>
+[[nodiscard]] constexpr auto type_of(t&&) noexcept -> const type_info&
+{
+    return type_id<t>();
 }
 }

@@ -47,7 +47,7 @@ public:
     auto unbind(const handle& handle) -> bool;
 
     template <typename event_t>
-    auto emit(auto&& event) -> bool;
+    auto emit(event_t&& event) -> bool;
 
 private:
     template <typename event_t>
@@ -116,7 +116,7 @@ auto event_bus::unbind(const handle& handle) -> bool
 }
 
 template <typename event_t>
-auto event_bus::emit(auto&& event) -> bool
+auto event_bus::emit(event_t&& event) -> bool
 {
     if (_events.contains(type_index<event_t>::value()))
     {

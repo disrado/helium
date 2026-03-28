@@ -14,7 +14,7 @@ namespace internal
 #if GCC_COMPILER
 
 // gcc (15.2) function signature format:
-// constexpr std::string_view internal::parse_name_from_signature() [with T = int; std::string_view = std::basic_string_view<char>]
+// constexpr std::string_view internal::parse_name_from_signature() [with t = int; std::string_view = std::basic_string_view<char>]
 
 constexpr const auto prefix{ std::string_view{ "= " } };
 constexpr const auto suffix{ std::string_view{ ";" } };
@@ -22,7 +22,7 @@ constexpr const auto suffix{ std::string_view{ ";" } };
 #elif CLANG_COMPILER
 
 // clang (21.1.0) function signature format:
-// std::string_view internal::parse_name_from_signature() [T = int]
+// std::string_view internal::parse_name_from_signature() [t = int]
 
 constexpr const auto prefix{ std::string_view{ "= " } };
 constexpr const auto suffix{ std::string_view{ "]" } };
@@ -37,7 +37,7 @@ constexpr const auto suffix{ std::string_view{ ">" } };
 
 #endif
 
-template <typename T>
+template <typename t>
 [[nodiscard]] constexpr auto parse_name_from_signature() noexcept -> std::string_view
 {
     auto signature{ std::string_view{ std::source_location::current().function_name() } };
@@ -48,10 +48,10 @@ template <typename T>
     return signature;
 }
 
-template <typename T>
+template <typename t>
 [[nodiscard]] constexpr auto get_name_of() noexcept -> std::string_view
 {
-    static const auto name{ internal::parse_name_from_signature<T>() };
+    static const auto name{ internal::parse_name_from_signature<t>() };
     return name;
 }
 }
@@ -62,12 +62,24 @@ template <typename T>
 ///
 /// !note, that on gcc compiler two different lambdas will have the same name
 ///
-template <typename T>
+template <typename t>
 struct type_name final
 {
     [[nodiscard]] static constexpr auto value() noexcept -> std::string_view
     {
-        return internal::get_name_of<T>();
+        return internal::get_name_of<t>();
     }
 };
+
+template <typename t>
+auto type_name_of(t&&) -> std::string_view
+{
+    return type_name<t>::value();
+}
+
+template <typename t>
+auto name_of(t&&) -> std::string_view
+{
+    return type_name<std::remove_cvref_t<std::remove_pointer_t<t>>>::value();
+}
 }

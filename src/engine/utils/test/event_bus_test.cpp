@@ -74,7 +74,7 @@ TEST_CASE("event_bus")
 
         event_bus.on<system_created>([&system_name] (const system_created& event) { system_name = event.system_name; });
 
-        REQUIRE(event_bus.emit<system_created>(system_created{ .system_name = "backend_system"s }));
+        REQUIRE(event_bus.emit(system_created{ .system_name = "backend_system"s }));
 
         REQUIRE(system_name == "backend_system"s);
     }
@@ -88,8 +88,8 @@ TEST_CASE("event_bus")
         event_bus.on<system_created>([&counter] (const auto& _) { counter++; });
         event_bus.on<state_changed>([&counter] (const auto& _) { counter++; });
 
-        REQUIRE(event_bus.emit<system_created>(system_created{}));
-        REQUIRE(event_bus.emit<state_changed>(state_changed{}));
+        REQUIRE(event_bus.emit(system_created{}));
+        REQUIRE(event_bus.emit(state_changed{}));
 
         REQUIRE(counter == 2);
     }
@@ -103,16 +103,16 @@ TEST_CASE("event_bus")
         const auto system_created_handle{ event_bus.on<system_created>([&counter] (const auto& _) { counter++; }) };
         const auto state_changed_handle{ event_bus.on<state_changed>([&counter] (const auto& _) { counter++; }) };
 
-        event_bus.emit<system_created>(system_created{});
-        event_bus.emit<state_changed>(state_changed{});
+        event_bus.emit(system_created{});
+        event_bus.emit(state_changed{});
 
         REQUIRE(counter == 2);
 
         REQUIRE(event_bus.unbind<system_created>(system_created_handle));
         REQUIRE(event_bus.unbind<state_changed>(state_changed_handle));
 
-        event_bus.emit<system_created>(system_created{});
-        event_bus.emit<state_changed>(state_changed{});
+        event_bus.emit(system_created{});
+        event_bus.emit(state_changed{});
 
         REQUIRE(counter == 2);
     }

@@ -23,7 +23,6 @@ set(engine_headers
     src/engine/utils/log/log.hpp)
 
 set(engine_sources
-    src/engine/core/system.cpp
     src/engine/core/system_base.cpp
     src/engine/core/world.cpp
     src/engine/utils/log/log.cpp)

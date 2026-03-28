@@ -3,7 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 
-TEST_CASE("type id", "[type_id]")
+TEST_CASE("type id")
 {
     REQUIRE(he::type_id<int>().index() == he::type_id<int>().index());
     REQUIRE(he::type_id<int>().name() == he::type_id<int>().name());
@@ -26,4 +26,11 @@ TEST_CASE("type id", "[type_id]")
     REQUIRE(he::type_id<int>() != he::type_id<int*>());
 
     REQUIRE(he::type_id<int*>() != he::type_id<const int[]>());
+}
+
+TEST_CASE("type_of")
+{
+    REQUIRE(he::type_of(std::size_t{}) == he::type_of(std::size_t{}));
+
+    REQUIRE(he::type_of(std::string{}) == he::type_id<std::string>());
 }

@@ -18,7 +18,7 @@ public:
     delegate(const delegate&) = default;
     delegate& operator =(const delegate&) = default;
 
-    delegate(const delegate&&) = default;
+    delegate(delegate&&) = default;
     delegate& operator =(delegate&&) = default;
 
     template <typename callable_t>
