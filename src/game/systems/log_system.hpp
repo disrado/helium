@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "engine/core/system_base.hpp"
-#include "engine/utils/log/message_queue.hpp"
 
 #include <chrono>
 #include <mutex>
