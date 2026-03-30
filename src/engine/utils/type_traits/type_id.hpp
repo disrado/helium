@@ -8,6 +8,7 @@
 
 namespace he
 {
+
 struct type_info final
 {
     template <typename T>
@@ -50,8 +51,9 @@ template <typename t>
 }
 
 template <typename t>
-[[nodiscard]] constexpr auto type_of(t&&) noexcept -> const type_info&
+[[nodiscard]] constexpr auto type_id_of(t&&) noexcept -> const type_info&
 {
     return type_id<t>();
 }
+
 }

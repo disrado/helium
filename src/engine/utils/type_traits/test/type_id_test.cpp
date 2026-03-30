@@ -28,9 +28,11 @@ TEST_CASE("type id")
     REQUIRE(he::type_id<int*>() != he::type_id<const int[]>());
 }
 
-TEST_CASE("type_of")
+TEST_CASE("type_id_of")
 {
-    REQUIRE(he::type_of(std::size_t{}) == he::type_of(std::size_t{}));
+    REQUIRE(he::type_id_of(std::size_t{}) == he::type_id_of(std::size_t{}));
 
-    REQUIRE(he::type_of(std::string{}) == he::type_id<std::string>());
+    REQUIRE(he::type_id_of(std::size_t{}) != he::type_id_of(std::string_view{}));
+
+    REQUIRE(he::type_id_of(std::string{}) == he::type_id<std::string>());
 }

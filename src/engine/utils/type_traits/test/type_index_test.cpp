@@ -22,3 +22,12 @@ TEST_CASE("type index", "[type_index]")
 
     REQUIRE(he::type_index<int*>::value() != he::type_index<const int[]>::value());
 }
+
+TEST_CASE("type_index_of")
+{
+    REQUIRE(he::type_index_of(std::size_t{}) == he::type_index_of(std::size_t{}));
+
+    REQUIRE(he::type_index_of(std::size_t{}) != he::type_index_of(int{}));
+
+    REQUIRE(he::type_index_of(std::string{}) != he::type_index<int*>::value());
+}

@@ -5,6 +5,7 @@
 
 namespace he
 {
+
 using type_index_t = uint32_t;
 
 namespace internal
@@ -28,4 +29,11 @@ struct type_index final
         return id;
     }
 };
+
+template <typename t>
+[[nodiscard]] constexpr auto type_index_of(t&&) noexcept -> const type_index_t
+{
+    return type_index<t>::value();
+}
+
 }
