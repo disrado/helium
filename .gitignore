@@ -1,5 +1,6 @@
-build
-deps/SDL
+.cmake/
+build/
+deps/
 .cache
 .idea
 CMakeUserPresets.json
