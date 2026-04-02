@@ -6,6 +6,8 @@
 #include <mutex>
 #include <source_location>
 
+#include "utils/type_traits/type_name.hpp"
+
 
 enum severity
 {
@@ -39,14 +41,14 @@ private:
     std::mutex _mutex;
 };
 
-template <severity severity>
-struct log_base
+template <typename... ts>
+struct log
 {
-    template <typename... ts>
-    log_base(std::string_view tag,
-             std::string_view format,
-             const std::source_location& location,
-             ts&&... args)
+    log(severity severity,
+        std::string_view tag,
+        std::string_view format,
+        ts&&... args,
+        const std::source_location& location = std::source_location::current())
     {
         he::world::get_system<logging>().log(
             std::chrono::zoned_time{ std::chrono::current_zone(), std::chrono::system_clock::now() },
@@ -58,41 +60,5 @@ struct log_base
 };
 
 template <typename... ts>
-struct info final: log_base<severity::info>
-{
-    info(std::string_view tag, std::string_view format, ts&&... args, const std::source_location& location = std::source_location::current())
-        : log_base{ tag, format, location, std::forward<ts>(args)... }
-    {
-    }
-};
-
-template <typename... ts>
-info(std::string_view, std::string_view, ts&&...) -> info<ts...>;
-
-
-template <typename... ts>
-struct warning final: log_base<severity::warning>
-{
-    warning(std::string_view tag, std::string_view format, ts&&... args, const std::source_location& location = std::source_location::current())
-        : log_base{ tag, format, location, std::forward<ts>(args)... }
-    {
-    }
-};
-
-template <typename... ts>
-warning(std::string_view, std::string_view, ts&&...) -> warning<ts...>;
-
-
-template <typename... ts>
-struct error final: log_base<severity::error>
-{
-    error(std::string_view tag, std::string_view format, ts&&... args, const std::source_location& location = std::source_location::current())
-        : log_base{ tag, format, location, std::forward<ts>(args)... }
-    {
-    }
-};
-
-template <typename... ts>
-error(std::string_view, std::string_view, ts&&...) -> error<ts...>;
-
+log(severity severity, std::string_view tag, std::string_view, ts&&...) -> log<ts...>;
 }

@@ -6,7 +6,7 @@
 
 TEST_CASE("game test")
 {
-    ne::info{ "tag", "format: {}", "message", 10, std::string{} };
+    ne::log{ info, "tag", "format: {}", "message", 10, std::string{} };
 
     SUCCEED();
 }
