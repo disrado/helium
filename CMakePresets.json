@@ -32,7 +32,7 @@
       "binaryDir": "${sourceDir}/build/win-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -g3 -O0"
+        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wnrvo -g3 -O0"
       }
     }
   ]
