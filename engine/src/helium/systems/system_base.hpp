@@ -16,10 +16,10 @@ public:
     virtual ~system_base() = default;
 
     template <std::derived_from<system_base> system_t>
-    auto add_subsystem(auto&&... args) -> system_t&;
+    auto add_child(auto&&... args) -> system_t&;
 
     template <std::derived_from<system_base> system_t>
-    auto remove_subsystem() -> bool;
+    auto remove_child() -> bool;
 
     auto get_subsystems() -> const std::map<type_index_t, std::shared_ptr<system_base>>&;
 
@@ -42,30 +42,29 @@ struct system_destroyed final
 };
 
 template <std::derived_from<system_base> system_t>
-auto system_base::add_subsystem(auto&&... args) -> system_t&
+auto system_base::add_child(auto&&... args) -> system_t&
 {
     auto system{ std::make_shared<system_t>(std::forward<decltype(args)>(args)...) };
 
-    _subsystems.emplace(type_index<system_t>::value(), system);
+    _subsystems.emplace(type_index<system_t>(), system);
 
-    world::events().emit(system_instantiated{ .type_index = type_index<system_t>::value(), .instance = std::weak_ptr{ system } });
+    world::events.emit(system_instantiated{ .type_index = type_index<system_t>(), .instance = std::weak_ptr{ system } });
 
     return *system;
 }
 
 template <std::derived_from<system_base> system_t>
-auto system_base::remove_subsystem() -> bool
+auto system_base::remove_child() -> bool
 {
-    const auto& system_type_index{ type_index<system_t>::value() };
+    const auto& system_type_index{ type_index<system_t>() };
 
     const auto removed{ _subsystems.erase(system_type_index) };
 
     if (removed)
     {
-        world::events().emit(system_destroyed{ .type_index = system_type_index });
+        world::events.emit(system_destroyed{ .type_index = system_type_index });
     }
 
     return removed;
 }
-
 }

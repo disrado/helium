@@ -8,6 +8,7 @@
 
 namespace he
 {
+
 namespace internal
 {
 
@@ -54,14 +55,7 @@ template <typename t>
     static const auto name{ internal::parse_name_from_signature<t>() };
     return name;
 }
-}
 
-///
-/// Provides a name of the given type
-/// The way how compilers define function signatures are vastly different and you should not rely on it
-///
-/// !note, that on gcc compiler two different lambdas will have the same name
-///
 template <typename t>
 struct type_name final
 {
@@ -71,15 +65,30 @@ struct type_name final
     }
 };
 
+}
+
+///
+/// Provides a name of the given type
+/// The way how compilers define function signatures are vastly different and you should not rely on it
+///
+/// !note, that on gcc compiler two different lambdas will have the same name
+///
+template <typename t>
+auto type_name() -> std::string_view
+{
+    return internal::type_name<t>::value();
+}
+
 template <typename t>
 auto type_name_of(t&&) -> std::string_view
 {
-    return type_name<t>::value();
+    return type_name<t>();
 }
 
 template <typename t>
 auto name_of(t&&) -> std::string_view
 {
-    return type_name<std::remove_cvref_t<std::remove_pointer_t<t>>>::value();
+    return type_name<std::remove_cvref_t<std::remove_pointer_t<t>>>();
 }
+
 }

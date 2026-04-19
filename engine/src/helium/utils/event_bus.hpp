@@ -74,7 +74,7 @@ auto event_bus::on(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback)
 template <typename event_t>
 auto event_bus::on(delegate<event_t> delegate) -> handle
 {
-    if (const auto event_id{ type_index<event_t>::value() }; _events.contains(type_index<event_t>::value()))
+    if (const auto event_id{ type_index<event_t>() }; _events.contains(type_index<event_t>()))
     {
         return handle{
             .id = access_slot<event_t>().delegate.bind(std::move(delegate)).id
@@ -97,7 +97,7 @@ auto event_bus::on(delegate<event_t> delegate) -> handle
 template <typename event_t>
 auto event_bus::unbind(const handle& handle) -> bool
 {
-    if (const auto event_id{ type_index<event_t>::value() }; _events.contains(type_index<event_t>::value()))
+    if (const auto event_id{ type_index<event_t>() }; _events.contains(type_index<event_t>()))
     {
         const auto unbound{ access_slot<event_t>().delegate.unbind(
             typename multicast_delegate<event_t>::handle{
@@ -118,7 +118,7 @@ auto event_bus::unbind(const handle& handle) -> bool
 template <typename event_t>
 auto event_bus::emit(event_t&& event) -> bool
 {
-    if (_events.contains(type_index<event_t>::value()))
+    if (_events.contains(type_index<event_t>()))
     {
         access_slot<event_t>().delegate.execute(std::forward<event_t>(event));
 
@@ -131,7 +131,7 @@ auto event_bus::emit(event_t&& event) -> bool
 template <typename event_t>
 auto event_bus::access_slot() -> event_slot<event_t>&
 {
-    return *(static_cast<event_slot<event_t>*>(_events.at(type_index<event_t>::value()).get()));
+    return *(static_cast<event_slot<event_t>*>(_events.at(type_index<event_t>()).get()));
 }
 
 }

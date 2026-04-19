@@ -13,8 +13,8 @@ struct type_info final
 {
     template <typename T>
     constexpr type_info(std::in_place_type_t<T>) noexcept
-        : _type_index{ type_index<T>::value() }
-        , _type_name{ type_name<T>::value() }
+        : _type_index{ type_index<T>() }
+        , _type_name{ type_name<T>() }
     {
     }
 

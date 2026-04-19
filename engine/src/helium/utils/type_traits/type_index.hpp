@@ -10,6 +10,7 @@ using type_index_t = uint32_t;
 
 namespace internal
 {
+
 struct sequential_index final
 {
     [[nodiscard]] static constexpr auto value() noexcept -> type_index_t
@@ -18,7 +19,6 @@ struct sequential_index final
         return index++;
     }
 };
-}
 
 template <typename T>
 struct type_index final
@@ -30,10 +30,18 @@ struct type_index final
     }
 };
 
+}
+
 template <typename t>
-[[nodiscard]] constexpr auto type_index_of(t&&) noexcept -> const type_index_t
+[[nodiscard]] constexpr auto type_index() noexcept -> type_index_t
 {
-    return type_index<t>::value();
+    return internal::type_index<t>::value();
+}
+
+template <typename t>
+[[nodiscard]] constexpr auto type_index_of(t&&) noexcept -> type_index_t
+{
+    return internal::type_index<t>::value();
 }
 
 }
