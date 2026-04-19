@@ -45,6 +45,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(test_sources
     ${sources}/systems/test/logging_test.cpp
+    ${sources}/utils/containers/test/ordered_tree_test.cpp
     ${sources}/utils/type_traits/test/type_index_test.cpp
     ${sources}/utils/type_traits/test/type_name_test.cpp
     ${sources}/utils/type_traits/test/type_id_test.cpp
