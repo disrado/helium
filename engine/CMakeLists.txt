@@ -17,6 +17,8 @@ set(helium_headers
     ${sources}/systems/logging.hpp
     ${sources}/systems/system_base.hpp
     ${sources}/systems/root_system.hpp
+    ${sources}/utils/singleton.hpp
+    ${sources}/utils/containers/ordered_tree.hpp
     ${sources}/utils/type_traits/type_index.hpp
     ${sources}/utils/type_traits/type_name.hpp
     ${sources}/utils/type_traits/type_id.hpp
