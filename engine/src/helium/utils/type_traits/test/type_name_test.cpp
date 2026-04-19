@@ -5,20 +5,20 @@
 
 TEST_CASE("type name", "[type_name]")
 {
-	REQUIRE(he::type_name<int>::value() == he::type_name<int>::value());
-	REQUIRE(he::type_name<std::string>::value() == he::type_name<std::string>::value());
+	REQUIRE(he::type_name<int>() == he::type_name<int>());
+	REQUIRE(he::type_name<std::string>() == he::type_name<std::string>());
 
-	REQUIRE(he::type_name<int>::value() != he::type_name<std::string>::value());
+	REQUIRE(he::type_name<int>() != he::type_name<std::string>());
 
-	REQUIRE(he::type_name<int>::value() != he::type_name<int&>::value());
-	REQUIRE(he::type_name<int>::value() != he::type_name<int&&>::value());
+	REQUIRE(he::type_name<int>() != he::type_name<int&>());
+	REQUIRE(he::type_name<int>() != he::type_name<int&&>());
 
-	REQUIRE(he::type_name<int>::value() != he::type_name<const int>::value());
-	REQUIRE(he::type_name<int>::value() != he::type_name<volatile int>::value());
+	REQUIRE(he::type_name<int>() != he::type_name<const int>());
+	REQUIRE(he::type_name<int>() != he::type_name<volatile int>());
 
-	REQUIRE(he::type_name<int>::value() != he::type_name<int*>::value());
+	REQUIRE(he::type_name<int>() != he::type_name<int*>());
 
-	REQUIRE(he::type_name<int*>::value() != he::type_name<const int[]>::value());
+	REQUIRE(he::type_name<int*>() != he::type_name<const int[]>());
 }
 
 TEST_CASE("type_name_of")
