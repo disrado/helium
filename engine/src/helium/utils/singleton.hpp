@@ -13,6 +13,12 @@ public:
 protected:
     singleton() = default;
 
+    singleton(const singleton&) = delete;
+    auto operator =(const singleton&) -> singleton& = delete;
+
+    singleton(singleton&&) = delete;
+    auto operator =(singleton&&) -> singleton& = delete;
+
 public:
     static auto instance() -> t&
     {
