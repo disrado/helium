@@ -1,19 +1,19 @@
-﻿#pragma once
+#pragma once
 
 #include <algorithm>
 #include <functional>
-#include <map>
 #include <memory>
 
 
 namespace he
 {
+
 /*
  * rooted tree with unique keys which preserves children elements order
  * traversal starts from root and ends with the rights-most element iterating over children in a left-to-right manner
  */
 template <typename key_t, typename value_t>
-class ordered_tree
+class ordered_tree final
 {
 public:
     using key_type = key_t;
@@ -22,11 +22,14 @@ public:
 private:
     struct node final
     {
-        key_t key;
-        value_t value;
+    public:
+        using value_type = std::pair<key_type, value_type>;
 
+    public:
         node* parent;
         std::vector<std::unique_ptr<node>> children;
+
+        value_type value;
     };
 
 private:
@@ -43,7 +46,7 @@ private:
     public:
         iterator_base() = default;
 
-        explicit iterator_base(node* tree_node);
+        explicit iterator_base(node* root, node* tree_node);
 
     public:
         auto operator *() const noexcept -> reference;
@@ -61,25 +64,34 @@ private:
         operator bool() const noexcept;
 
     private:
+        node* _root{ nullptr };
         node* _node{ nullptr };
     };
 
 public:
-    using iterator = iterator_base<value_type, value_type*, value_type&>;
-    using const_iterator = iterator_base<value_type, const value_type*, const value_type&>;
+    using iterator = iterator_base<typename node::value_type, typename node::value_type*, typename node::value_type&>;
+    using const_iterator = iterator_base<typename node::value_type, const typename node::value_type*, const typename node::value_type&>;
 
 public:
-    explicit ordered_tree(key_type root_key, value_t root_value);
+    explicit ordered_tree(key_type root_key, value_type root_value);
 
-    // deep copy ctor/assignment
-    // move ctor/assignment
+    ordered_tree(const ordered_tree& other);
+    ordered_tree(ordered_tree&& other) noexcept;
+
+    auto operator =(ordered_tree other) -> ordered_tree&;
 
 public:
     auto emplace(const key_type& parent_key, const key_type& key, auto&&... args) -> bool;
 
+    auto erase(const key_type& key) -> bool;
+
+    auto clear() -> void;
+
     auto find(const key_type& key) -> value_type*;
 
-    auto contains(const key_type& key) -> bool;
+    auto find(const key_type& key) const -> const value_type*;
+
+    auto contains(const key_type& key) const -> bool;
 
     auto size() const noexcept -> std::size_t;
 
@@ -91,50 +103,80 @@ public:
     auto is_descendant_of(const key_type& child_key, const key_type& parent_key) const -> bool;
     auto is_ancestor_of(const key_type& parent_key, const key_type& child_key) const -> bool;
 
+    auto swap(ordered_tree& other) noexcept -> void;
+
     auto begin() noexcept -> iterator;
-    auto end() noexcept -> std::default_sentinel_t;
+    auto end() noexcept -> iterator;
 
     auto begin() const noexcept -> const_iterator;
-    auto end() const noexcept -> std::default_sentinel_t;
+    auto end() const noexcept -> const_iterator;
 
-    // rbegin
-    // rend
+    auto cbegin() const noexcept -> const_iterator;
+    auto cend() const noexcept -> const_iterator;
 
-    // crbegin
-    // crend
+    auto rbegin() noexcept -> std::reverse_iterator<iterator>;
+    auto rend() noexcept -> std::reverse_iterator<iterator>;
+
+    auto crbegin() noexcept -> std::reverse_iterator<const_iterator>;
+    auto crend() noexcept -> std::reverse_iterator<const_iterator>;
 
 private:
     auto find_node(node& root, const key_type& target_key) const -> node*;
+
+    static auto get_last_node(node& root) -> node&;
+
+    static auto count_descendants(const node& root) -> std::size_t;
+
+    static auto copy_tree(const node& from, node* parent) -> std::unique_ptr<node>;
 
 private:
     std::unique_ptr<node> _root;
     std::size_t _size{ 0 };
 };
 
-template <typename key_t, typename value_t>
-ordered_tree<key_t, value_t>::ordered_tree(key_t root_key, value_t root_value)
+template <typename k, typename v>
+ordered_tree<k, v>::ordered_tree(key_type root_key, value_type root_value)
     : _root{ std::make_unique<node>(
         node{
-            .key = std::move(root_key),
-            .value = std::move(root_value),
             .parent = nullptr,
-            .children = {}
+            .children = {},
+            .value = std::pair{ std::move(root_key), std::move(root_value) }
         }) }
-, _size{ 1 }
+    , _size{ 1 }
 {
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::emplace(const key_type& parent_key, const key_type& key, auto&&... args) -> bool
+template <typename k, typename v>
+ordered_tree<k, v>::ordered_tree([[maybe_unused]] const ordered_tree& other)
+    : _root{ copy_tree(*other._root, nullptr) }
+    , _size{ other._size }
 {
-    auto* parent{ find_node(*_root, parent_key) };
-    if (!parent)
+}
+
+template <typename k, typename v>
+ordered_tree<k, v>::ordered_tree(ordered_tree&& other) noexcept
+{
+    swap(other);
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::operator =(ordered_tree other) -> ordered_tree&
+{
+    swap(other);
+
+    return *this;
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::emplace(const key_type& parent_key, const key_type& key, auto&&... args) -> bool
+{
+    if (find_node(*_root, key))
     {
         return false;
     }
 
-    auto self{ std::ranges::find_if(parent->children, [key] (const auto& child) { return child->key == key; }) };
-    if (self != std::ranges::end(parent->children))
+    auto* parent{ find_node(*_root, parent_key) };
+    if (!parent)
     {
         return false;
     }
@@ -142,10 +184,9 @@ auto ordered_tree<key_t, value_t>::emplace(const key_type& parent_key, const key
     parent->children.emplace_back(
         std::make_unique<node>(
             node{
-                .key = key,
-                .value = value_type{ std::forward<decltype(args)>(args)... },
                 .parent = parent,
-                .children = {}
+                .children = {},
+                .value = std::pair{ key, value_type{ std::forward<decltype(args)>(args)... } }
             }
         ));
 
@@ -154,73 +195,108 @@ auto ordered_tree<key_t, value_t>::emplace(const key_type& parent_key, const key
     return true;
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::find(const key_type& key) -> value_type*
+template <typename k, typename v>
+auto ordered_tree<k, v>::erase(const key_type& key) -> bool
 {
-    for (const auto& node : *this)
+    if (auto* found{ find_node(*_root, key) })
     {
-        if (node.key == key)
+        if (!found->parent)
         {
-            return &node;
+            return false;
+        }
+
+        _size -= 1 + count_descendants(*found);
+
+        std::erase_if(found->parent->children, [key] (const auto& child) { return child->value.first == key; });
+
+        return true;
+    }
+
+    return false;
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::clear() -> void
+{
+    _root->children.clear();
+
+    _size = 1;
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::find(const key_type& key) -> value_type*
+{
+    for (auto& [node_key, node_value]: *this)
+    {
+        if (node_key == key)
+        {
+            return &node_value;
         }
     }
 
     return nullptr;
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::contains(const key_type& key) -> bool
+template <typename k, typename v>
+auto ordered_tree<k, v>::find(const key_type& key) const -> const value_type*
+{
+    return const_cast<ordered_tree<k, v>*>(this)->find(key);
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::contains(const key_type& key) const -> bool
 {
     return find(key);
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::size() const noexcept -> std::size_t
+template <typename k, typename v>
+auto ordered_tree<k, v>::size() const noexcept -> std::size_t
 {
     return _size;
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::is_root(const key_type& key) const -> bool
+template <typename k, typename v>
+auto ordered_tree<k, v>::is_root(const key_type& key) const -> bool
 {
-    return _root->key == key;
+    return _root->value.first == key;
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::is_child_of(const key_type& key, const key_type& parent_key) const -> bool
+template <typename k, typename v>
+auto ordered_tree<k, v>::is_child_of(const key_type& key, const key_type& parent_key) const -> bool
 {
-    if (const auto* found{ find_node(*_root, key) })
+    if (const auto* found{ find_node(const_cast<node&>(*_root), key) })
     {
-        return found->parent && found->parent->key == parent_key;
+        return found->parent && found->parent->value.first == parent_key;
     }
 
     return false;
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::is_parent_of(const key_type& key, const key_type& child_key) const -> bool
+template <typename k, typename v>
+auto ordered_tree<k, v>::is_parent_of(const key_type& key, const key_type& child_key) const -> bool
 {
-    if (const auto* found{ find_node(*_root, key) })
+    if (const auto* found{ find_node(const_cast<node&>(*_root), key) })
     {
-        return std::ranges::find_if(found->children, [child_key] (auto& node) { return node->key == child_key; });
+        auto found_child{ std::ranges::find_if(found->children, [child_key] (auto& node) { return node->value.first == child_key; }) };
+        return found_child != std::ranges::end(found->children);
     }
 
     return false;
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::is_descendant_of(const key_type& key, const key_type& descendant_key) const -> bool
+template <typename k, typename v>
+auto ordered_tree<k, v>::is_descendant_of(const key_type& key, const key_type& descendant_key) const -> bool
 {
     if (key == descendant_key)
     {
         return false;
     }
 
-    if (const auto* found{ find_node(*_root, key) })
+    if (const auto* found{ find_node(const_cast<node&>(*_root), descendant_key) })
     {
-        for (auto it{ const_iterator{ found } }; it; ++it)
+        for (const auto& child: found->children)
         {
-            if (it->key == descendant_key)
+            if (find_node(*child, key))
             {
                 return true;
             }
@@ -230,19 +306,19 @@ auto ordered_tree<key_t, value_t>::is_descendant_of(const key_type& key, const k
     return false;
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::is_ancestor_of(const key_type& key, const key_type& ancestor_key) const -> bool
+template <typename k, typename v>
+auto ordered_tree<k, v>::is_ancestor_of(const key_type& key, const key_type& ancestor_key) const -> bool
 {
     if (key == ancestor_key)
     {
         return false;
     }
 
-    if (const auto* found{ find_node(*_root, key) })
+    if (const auto* found{ find_node(const_cast<node&>(*_root), ancestor_key) })
     {
-        for (auto it{ const_iterator{ found } }; it; --it)
+        for (auto* ancestor{ found->parent }; ancestor; ancestor = ancestor->parent)
         {
-            if (it->key == ancestor_key)
+            if (ancestor->value.first == key)
             {
                 return true;
             }
@@ -252,71 +328,159 @@ auto ordered_tree<key_t, value_t>::is_ancestor_of(const key_type& key, const key
     return false;
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::begin() noexcept -> iterator
+template <typename k, typename v>
+auto ordered_tree<k, v>::swap(ordered_tree& other) noexcept -> void
 {
-    return _root ? iterator{ _root.get() } : iterator{};
+    std::swap(_root, other._root);
+    std::swap(_size, other._size);
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::begin() const noexcept -> const_iterator
+template <typename k, typename v>
+auto ordered_tree<k, v>::begin() noexcept -> iterator
 {
-    return _root ? const_iterator{ _root.get() } : const_iterator{};
+    return iterator{ _root.get(), _root.get() };
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::end() noexcept -> std::default_sentinel_t
+template <typename k, typename v>
+auto ordered_tree<k, v>::end() noexcept -> iterator
 {
-    return std::default_sentinel_t{};
+    return iterator{ _root.get(), nullptr };
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::end() const noexcept -> std::default_sentinel_t
+template <typename k, typename v>
+auto ordered_tree<k, v>::begin() const noexcept -> const_iterator
 {
-    return std::default_sentinel_t{};
+    return const_iterator{ _root.get(), _root.get() };
 }
 
-template <typename key_t, typename value_t>
-auto ordered_tree<key_t, value_t>::find_node(node& root, const key_type& target_key) const -> node*
+template <typename k, typename v>
+auto ordered_tree<k, v>::end() const noexcept -> const_iterator
 {
-    if (root.key == target_key)
+    return const_iterator{ _root.get(), nullptr };
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::cbegin() const noexcept -> const_iterator
+{
+    return const_iterator{ _root.get(), _root.get() };
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::cend() const noexcept -> const_iterator
+{
+    return const_iterator{ _root.get(), nullptr };
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::rbegin() noexcept -> std::reverse_iterator<iterator>
+{
+    return std::reverse_iterator<iterator>(end());
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::rend() noexcept -> std::reverse_iterator<iterator>
+{
+    return std::reverse_iterator<iterator>(begin());
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::crbegin() noexcept -> std::reverse_iterator<const_iterator>
+{
+    return std::reverse_iterator<const_iterator>(cend());
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::crend() noexcept -> std::reverse_iterator<const_iterator>
+{
+    return std::reverse_iterator<const_iterator>(cbegin());
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::find_node(node& root, const key_type& target_key) const -> node*
+{
+    if (root.value.first == target_key)
     {
         return &root;
     }
 
-    for (auto& node : root.children)
+    for (auto& node: root.children)
     {
-        find_node(*node.get(), target_key);
+        if (auto* found{ find_node(*node.get(), target_key) })
+        {
+            return found;
+        }
     }
 
     return nullptr;
 }
 
-template <typename key_t, typename value_t>
+template <typename k, typename v>
+auto ordered_tree<k, v>::get_last_node(node& root) -> node&
+{
+    if (root.children.empty())
+    {
+        return root;
+    }
+
+    return get_last_node(*root.children.back());
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::count_descendants(const node& root) -> std::size_t
+{
+    auto counter{ root.children.size() };
+
+    for (const auto& child: root.children)
+    {
+        counter += count_descendants(*child.get());
+    }
+
+    return counter;
+}
+
+template <typename k, typename v>
+auto ordered_tree<k, v>::copy_tree(const node& from, node* parent) -> std::unique_ptr<node>
+{
+    auto copy{ std::make_unique<node>(
+        node{
+            .parent = parent,
+            .children = {},
+            .value = from.value
+        }) };
+
+    for (const auto& child: from.children)
+    {
+        copy->children.emplace_back(copy_tree(*child, copy.get()));
+    }
+
+    return copy;
+}
+
+template <typename k, typename v>
 template <typename it_value_t, typename it_ptr_t, typename it_ref_t>
-ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::iterator_base(node* tree_node)
-    : _node{ tree_node }
+ordered_tree<k, v>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::iterator_base(node* root, node* tree_node)
+    : _root{ root }
+    , _node{ tree_node }
 {
 }
 
-
-template <typename key_t, typename value_t>
+template <typename k, typename v>
 template <typename it_value_t, typename it_ptr_t, typename it_ref_t>
-auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator *() const noexcept -> reference
+auto ordered_tree<k, v>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator *() const noexcept -> reference
 {
     return _node->value;
 }
 
-template <typename key_t, typename value_t>
+template <typename k, typename v>
 template <typename it_value_t, typename it_ptr_t, typename it_ref_t>
-auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator ->() const noexcept -> pointer
+auto ordered_tree<k, v>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator ->() const noexcept -> pointer
 {
     return &_node->value;
 }
 
-template <typename key_t, typename value_t>
+template <typename k, typename v>
 template <typename it_value_t, typename it_ptr_t, typename it_ref_t>
-auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator ++() noexcept -> iterator_base&
+auto ordered_tree<k, v>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator ++() noexcept -> iterator_base&
 {
     if (!_node)
     {
@@ -335,22 +499,24 @@ auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>
         return *this;
     }
 
-    auto self{ std::ranges::find_if(_node->parent->children, [this] (auto& node) { return node.get() == _node; }) };
-    if (*self != _node->parent->children.back())
+    for (auto* ancestor{ _node }; ancestor->parent; ancestor = ancestor->parent)
     {
-        _node = (++self)->get();
+        auto self{ std::ranges::find_if(ancestor->parent->children, [ancestor] (auto& node) { return node.get() == ancestor; }) };
+        if (*self != ancestor->parent->children.back())
+        {
+            _node = (++self)->get();
+            return *this;
+        }
     }
-    else
-    {
-        _node = nullptr;
-    }
+
+    _node = nullptr;
 
     return *this;
 }
 
-template <typename key_t, typename value_t>
+template <typename k, typename v>
 template <typename it_value_t, typename it_ptr_t, typename it_ref_t>
-auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator ++(int) noexcept -> iterator_base
+auto ordered_tree<k, v>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator ++(int) noexcept -> iterator_base
 {
     auto tmp{ *this };
 
@@ -359,12 +525,13 @@ auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>
     return tmp;
 }
 
-template <typename key_t, typename value_t>
+template <typename k, typename v>
 template <typename it_value_t, typename it_ptr_t, typename it_ref_t>
-auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator --() noexcept -> iterator_base&
+auto ordered_tree<k, v>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator --() noexcept -> iterator_base&
 {
     if (!_node)
     {
+        _node = &get_last_node(*_root);
         return *this;
     }
 
@@ -378,7 +545,7 @@ auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>
 
     if (*self != _node->parent->children.front())
     {
-        _node = (--self)->get();
+        _node = &get_last_node(*((--self)->get()));
     }
     else
     {
@@ -388,9 +555,9 @@ auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>
     return *this;
 }
 
-template <typename key_t, typename value_t>
+template <typename k, typename v>
 template <typename it_value_t, typename it_ptr_t, typename it_ref_t>
-auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator --(int) noexcept -> iterator_base
+auto ordered_tree<k, v>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator --(int) noexcept -> iterator_base
 {
     auto tmp{ *this };
 
@@ -399,16 +566,16 @@ auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>
     return tmp;
 }
 
-template <typename key_t, typename value_t>
+template <typename k, typename v>
 template <typename it_value_t, typename it_ptr_t, typename it_ref_t>
-auto ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator ==(std::default_sentinel_t) const noexcept -> bool
+auto ordered_tree<k, v>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator ==(std::default_sentinel_t) const noexcept -> bool
 {
     return !static_cast<bool>(_node);
 }
 
-template <typename key_t, typename value_t>
+template <typename k, typename v>
 template <typename it_value_t, typename it_ptr_t, typename it_ref_t>
-ordered_tree<key_t, value_t>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator bool() const noexcept
+ordered_tree<k, v>::iterator_base<it_value_t, it_ptr_t, it_ref_t>::operator bool() const noexcept
 {
     return static_cast<bool>(_node);
 }
