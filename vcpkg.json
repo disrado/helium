@@ -4,7 +4,10 @@
     {
       "name": "sdl3",
       "default-features": false,
-      "features": ["x11", "wayland"]
+      "features": [
+        { "name": "x11", "platform": "linux" },
+        { "name": "wayland", "platform": "linux" }
+      ]
     },
     "catch2"
   ]
