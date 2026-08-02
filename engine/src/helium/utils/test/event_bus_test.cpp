@@ -61,7 +61,7 @@ TEST_CASE("event_bus")
         he::event_bus{}.on<bool>(std::weak_ptr{ lifetime_owner }, &owner::callable);
     }
 
-    SECTION("binding delegate")
+    SECTION("binding _delegate")
     {
         he::event_bus{}.on<bool>(he::delegate<bool>{ [] (bool) {} });
     }

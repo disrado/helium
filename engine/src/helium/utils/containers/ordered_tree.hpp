@@ -23,7 +23,7 @@ private:
     struct node final
     {
     public:
-        using value_type = std::pair<key_type, value_type>;
+        using value_type = std::pair<ordered_tree::key_type, ordered_tree::value_type>;
 
     public:
         node* parent;

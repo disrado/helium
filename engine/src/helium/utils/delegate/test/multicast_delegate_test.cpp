@@ -63,7 +63,7 @@ TEST_CASE("multicast_delegate")
         REQUIRE(delegate.is_bound());
     }
 
-    SECTION("binding delegate")
+    SECTION("binding _delegate")
     {
         auto delegate{ he::multicast_delegate<double, std::string&&>{} };
 
@@ -121,12 +121,12 @@ TEST_CASE("multicast_delegate execution")
         counter--;
     } };
 
-    SECTION("execution of unbound delegate")
+    SECTION("execution of unbound _delegate")
     {
         REQUIRE_FALSE(he::multicast_delegate{}.execute());
     }
 
-    SECTION("execution of bound delegate")
+    SECTION("execution of bound _delegate")
     {
         auto delegate{ he::multicast_delegate{} };
 

@@ -24,7 +24,7 @@ private:
     struct bound_entry final
     {
         handle _handle;
-        delegate<arg_ts...> delegate;
+        delegate<arg_ts...> _delegate;
     };
 
 public:
@@ -81,7 +81,7 @@ auto multicast_delegate<arg_ts...>::bind(he::delegate<arg_ts...> delegate) -> ha
                 ._handle = {
                     .id = generate_handle_id()
                 },
-                .delegate = std::move(delegate)
+                ._delegate = std::move(delegate)
             })
     };
 
@@ -109,7 +109,7 @@ auto multicast_delegate<arg_ts...>::execute(arg_ts&&... args) const -> bool
 {
     for (const auto& entry: _bound_list)
     {
-        entry.delegate.execute(std::forward<arg_ts>(args)...);
+        entry._delegate.execute(std::forward<arg_ts>(args)...);
     }
 
     return !_bound_list.empty();
