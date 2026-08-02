@@ -10,7 +10,7 @@ namespace he
 world::world()
     : _root_system{ std::make_shared<root_system>() }
 {
-    events.on<system_instantiated>([this] (const auto& _) { rebuild_systems_cache(); });
+    events.on<system_instantiated>([this] (const auto&) { rebuild_systems_cache(); });
     events.on<system_destroyed>([this] (const auto&) { rebuild_systems_cache(); });
 
     _systems_cache.emplace_back(

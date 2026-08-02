@@ -85,8 +85,8 @@ TEST_CASE("event_bus")
 
         auto counter{ 0ul };
 
-        event_bus.on<system_created>([&counter] (const auto& _) { counter++; });
-        event_bus.on<state_changed>([&counter] (const auto& _) { counter++; });
+        event_bus.on<system_created>([&counter] (const auto&) { counter++; });
+        event_bus.on<state_changed>([&counter] (const auto&) { counter++; });
 
         REQUIRE(event_bus.emit(system_created{}));
         REQUIRE(event_bus.emit(state_changed{}));
@@ -100,8 +100,8 @@ TEST_CASE("event_bus")
 
         auto counter{ 0ul };
 
-        const auto system_created_handle{ event_bus.on<system_created>([&counter] (const auto& _) { counter++; }) };
-        const auto state_changed_handle{ event_bus.on<state_changed>([&counter] (const auto& _) { counter++; }) };
+        const auto system_created_handle{ event_bus.on<system_created>([&counter] (const auto&) { counter++; }) };
+        const auto state_changed_handle{ event_bus.on<state_changed>([&counter] (const auto&) { counter++; }) };
 
         event_bus.emit(system_created{});
         event_bus.emit(state_changed{});

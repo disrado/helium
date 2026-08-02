@@ -30,9 +30,10 @@
       "displayName": "windows debug",
       "inherits": "win",
       "binaryDir": "${sourceDir}/build/win-debug",
+      "$comment": "-Wno-c2y-extensions: silences Catch2's __COUNTER__ use in TEST_CASE, flagged by -Wpedantic",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -Wnrvo -g3 -O0"
+        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -Wpedantic -Wno-c2y-extensions -Wnrvo -g3 -O0"
       }
     },
     {
@@ -54,7 +55,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_COMPILER": "g++-16",
         "CMAKE_C_COMPILER": "gcc-16",
-        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -O2"
+        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -Wpedantic -O2"
       }
     }
   ]
