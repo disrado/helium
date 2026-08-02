@@ -1,22 +1,26 @@
 pipeline {
-    agent {
-        docker {
-            image 'helium-linux-build-env:latest'
-            label 'linux'
-        }
+    agent { label 'linux' }
+    environment {
+        IMAGE = 'helium-linux-build-env:latest'
     }
     stages {
         stage('Configure') {
-            steps { sh 'cmake --preset linux-release' }
+            steps { script { runInContainer('cmake --preset linux-release') } }
         }
         stage('Build') {
-            steps { sh 'cmake --build build/linux-release' }
+            steps { script { runInContainer('cmake --build build/linux-release') } }
         }
         stage('Test') {
             steps {
-                sh 'build/linux-release/engine/helium_test_suite'
-                sh 'build/linux-release/game/game_test_suite'
+                script {
+                    runInContainer('build/linux-release/engine/helium_test_suite')
+                    runInContainer('build/linux-release/game/game_test_suite')
+                }
             }
         }
     }
+}
+
+def runInContainer(command) {
+    sh "docker run --rm -v \$WORKSPACE:/workspace -w /workspace ${env.IMAGE} ${command}"
 }
