@@ -22,5 +22,5 @@ pipeline {
 }
 
 def runInContainer(command) {
-    sh "docker run --rm -v \$WORKSPACE:/workspace -w /workspace ${env.IMAGE} ${command}"
+    sh "docker run --rm -v \$WORKSPACE:/workspace -v vcpkg_cache:/root/.cache/vcpkg -w /workspace ${env.IMAGE} ${command}"
 }
