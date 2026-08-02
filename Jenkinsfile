@@ -22,5 +22,12 @@ pipeline {
 }
 
 def runInContainer(command) {
-    sh "docker run --rm -v \$WORKSPACE:/workspace -v vcpkg_cache:/root/.cache/vcpkg -w /workspace ${env.IMAGE} ${command}"
+    sh """docker run --rm -v \$WORKSPACE:/workspace -v vcpkg_cache:/root/.cache/vcpkg -w /workspace ${env.IMAGE} bash -c '
+        ${command}
+        code=\$?
+        if [ \$code -ne 0 ]; then
+            find /opt/vcpkg/buildtrees -name \"*.log\" -exec echo ==={}=== \\; -exec cat {} \\;
+        fi
+        exit \$code
+    '"""
 }
