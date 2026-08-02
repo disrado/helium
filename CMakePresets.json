@@ -32,7 +32,7 @@
       "binaryDir": "${sourceDir}/build/win-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wnrvo -g3 -O0"
+        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -Wnrvo -g3 -O0"
       }
     },
     {
@@ -52,8 +52,9 @@
       "binaryDir": "${sourceDir}/build/linux-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -O2"
+        "CMAKE_CXX_COMPILER": "g++-16",
+        "CMAKE_C_COMPILER": "gcc-16",
+        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -O2"
       }
     }
   ]

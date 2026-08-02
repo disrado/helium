@@ -14,16 +14,16 @@ using tree_t = he::ordered_tree<he::type_index_t, int>;
 
 TEST_CASE("tree traits")
 {
-    using tree_t = he::ordered_tree<he::type_index_t, std::string>;
+    using string_tree_t = he::ordered_tree<he::type_index_t, std::string>;
 
-    STATIC_CHECK(std::ranges::common_range<tree_t>);
-    STATIC_CHECK(std::ranges::bidirectional_range<tree_t>);
-    STATIC_CHECK(std::ranges::viewable_range<tree_t>);
-    STATIC_CHECK(std::ranges::sized_range<tree_t>);
+    STATIC_CHECK(std::ranges::common_range<string_tree_t>);
+    STATIC_CHECK(std::ranges::bidirectional_range<string_tree_t>);
+    STATIC_CHECK(std::ranges::viewable_range<string_tree_t>);
+    STATIC_CHECK(std::ranges::sized_range<string_tree_t>);
 
-    STATIC_CHECK(std::ranges::range<const tree_t>);
-    STATIC_CHECK(std::ranges::bidirectional_range<const tree_t>);
-    STATIC_CHECK(std::ranges::sized_range<const tree_t>);
+    STATIC_CHECK(std::ranges::range<const string_tree_t>);
+    STATIC_CHECK(std::ranges::bidirectional_range<const string_tree_t>);
+    STATIC_CHECK(std::ranges::sized_range<const string_tree_t>);
 }
 
 TEST_CASE("tree iterator traits")
@@ -503,9 +503,9 @@ TEST_CASE("tree reverse iteration")
 
 TEST_CASE("tree with non-trivial value type")
 {
-    using tree_t = he::ordered_tree<he::type_index_t, std::string>;
+    using string_tree_t = he::ordered_tree<he::type_index_t, std::string>;
 
-    auto original{ tree_t{ he::type_index<int>(), std::string{ "root" } } };
+    auto original{ string_tree_t{ he::type_index<int>(), std::string{ "root" } } };
     REQUIRE(original.emplace(he::type_index<int>(), he::type_index<bool>(), std::string{ "child" }));
 
     REQUIRE(original.size() == 2);
