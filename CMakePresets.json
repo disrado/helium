@@ -34,6 +34,27 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wnrvo -g3 -O0"
       }
+    },
+    {
+      "name": "linux",
+      "hidden": true,
+      "inherits": "vcpkg",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "linux-release",
+      "displayName": "linux release",
+      "inherits": "linux",
+      "binaryDir": "${sourceDir}/build/linux-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -O2"
+      }
     }
   ]
 }
