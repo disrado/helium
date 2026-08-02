@@ -3,6 +3,7 @@
 #include "utils/delegate/delegate.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 
 namespace he
