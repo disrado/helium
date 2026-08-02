@@ -39,7 +39,7 @@ public:
 
     auto bind(he::delegate<arg_ts...> delegate) -> handle;
 
-    auto unbind(const handle& handle) -> bool;
+    auto unbind(const handle& target_handle) -> bool;
 
     auto unbind_all() -> void;
 
@@ -76,7 +76,7 @@ auto multicast_delegate<arg_ts...>::bind(std::weak_ptr<lifetime_owner_t> owner, 
 template <typename... arg_ts>
 auto multicast_delegate<arg_ts...>::bind(he::delegate<arg_ts...> delegate) -> handle
 {
-    const auto& [handle, bound_delegate]{
+    const auto& [new_handle, bound_delegate]{
         _bound_list.emplace_back(
             bound_entry{
                 ._handle = {
@@ -86,16 +86,16 @@ auto multicast_delegate<arg_ts...>::bind(he::delegate<arg_ts...> delegate) -> ha
             })
     };
 
-    return handle;
+    return new_handle;
 }
 
 template <typename... arg_ts>
-auto multicast_delegate<arg_ts...>::unbind(const handle& handle) -> bool
+auto multicast_delegate<arg_ts...>::unbind(const handle& target_handle) -> bool
 {
     return std::erase_if(
-        _bound_list, [&handle = handle] (const auto& entry)
+        _bound_list, [&target_handle] (const auto& entry)
         {
-            return entry._handle.id == handle.id;
+            return entry._handle.id == target_handle.id;
         });
 }
 

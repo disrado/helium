@@ -14,7 +14,7 @@
 struct container
 {
     template <typename t>
-    auto bar(const std::string_view _) noexcept(false) -> std::pair<int, int>
+    auto bar(const std::string_view) noexcept(false) -> std::pair<int, int>
     {
         he::world::instance().get<he::root_system>().add_child<ne::logging>();
 

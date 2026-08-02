@@ -44,7 +44,7 @@ public:
     auto on(delegate<event_t> delegate) -> handle;
 
     template <typename event_t>
-    auto unbind(const handle& handle) -> bool;
+    auto unbind(const handle& target_handle) -> bool;
 
     template <typename event_t>
     auto emit(event_t&& event) -> bool;
@@ -95,13 +95,13 @@ auto event_bus::on(delegate<event_t> delegate) -> handle
 }
 
 template <typename event_t>
-auto event_bus::unbind(const handle& handle) -> bool
+auto event_bus::unbind(const handle& target_handle) -> bool
 {
     if (const auto event_id{ type_index<event_t>() }; _events.contains(type_index<event_t>()))
     {
         const auto unbound{ access_slot<event_t>().delegate.unbind(
             typename multicast_delegate<event_t>::handle{
-                .id = handle.id
+                .id = target_handle.id
             }) };
 
         if (!access_slot<event_t>().delegate.is_bound())

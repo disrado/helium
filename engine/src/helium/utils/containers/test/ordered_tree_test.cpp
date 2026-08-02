@@ -219,16 +219,17 @@ TEST_CASE("tree erase")
         REQUIRE(tree.erase(he::type_index<float>()));
 
         auto keys{ std::vector<he::type_index_t>{} };
-        for (const auto& [key, value] : tree)
+        for (const auto& [key, value]: tree)
         {
             keys.push_back(key);
         }
 
-        REQUIRE(keys == std::vector<he::type_index_t>{
+        REQUIRE(
+            keys == std::vector<he::type_index_t>{
             he::type_index<int>(),
             he::type_index<bool>(),
             he::type_index<double>()
-        });
+            });
     }
 
     SECTION("forward iteration order stays correct after erasing a subtree")
@@ -236,15 +237,16 @@ TEST_CASE("tree erase")
         REQUIRE(tree.erase(he::type_index<bool>()));
 
         auto keys{ std::vector<he::type_index_t>{} };
-        for (const auto& [key, value] : tree)
+        for (const auto& [key, value]: tree)
         {
             keys.push_back(key);
         }
 
-        REQUIRE(keys == std::vector<he::type_index_t>{
+        REQUIRE(
+            keys == std::vector<he::type_index_t>{
             he::type_index<int>(),
             he::type_index<double>()
-        });
+            });
     }
 
     SECTION("erased key can be re-emplaced")
@@ -413,7 +415,7 @@ TEST_CASE("tree forward iteration")
     {
         auto keys{ std::vector<he::type_index_t>{} };
 
-        for (const auto& [key, value] : tree)
+        for (const auto& [key, value]: tree)
         {
             keys.push_back(key);
         }
@@ -440,7 +442,7 @@ TEST_CASE("tree forward iteration")
         REQUIRE(cbegin_keys == expected_keys);
 
         auto const_range_keys{ std::vector<he::type_index_t>{} };
-        for (const auto& [key, value] : const_tree)
+        for (const auto& [key, value]: const_tree)
         {
             const_range_keys.push_back(key);
         }
@@ -492,7 +494,7 @@ TEST_CASE("tree reverse iteration")
     {
         auto keys{ std::vector<he::type_index_t>{} };
 
-        for (const auto& [key, value] : tree | std::views::reverse)
+        for (const auto& [key, value]: tree | std::views::reverse)
         {
             keys.push_back(key);
         }

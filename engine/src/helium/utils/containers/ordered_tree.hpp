@@ -277,7 +277,7 @@ auto ordered_tree<k, v>::is_parent_of(const key_type& key, const key_type& child
 {
     if (const auto* found{ find_node(const_cast<node&>(*_root), key) })
     {
-        auto found_child{ std::ranges::find_if(found->children, [child_key] (auto& node) { return node->value.first == child_key; }) };
+        auto found_child{ std::ranges::find_if(found->children, [child_key] (auto& child) { return child->value.first == child_key; }) };
         return found_child != std::ranges::end(found->children);
     }
 
@@ -403,9 +403,9 @@ auto ordered_tree<k, v>::find_node(node& root, const key_type& target_key) const
         return &root;
     }
 
-    for (auto& node: root.children)
+    for (auto& child_node: root.children)
     {
-        if (auto* found{ find_node(*node.get(), target_key) })
+        if (auto* found{ find_node(*child_node.get(), target_key) })
         {
             return found;
         }
