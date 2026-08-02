@@ -11,7 +11,7 @@ auto system_base::get_subsystems() -> const std::map<type_index_t, std::shared_p
     return _subsystems;
 }
 
-auto system_base::tick(double dt) -> void
+auto system_base::tick(double) -> void
 {
     //
 }

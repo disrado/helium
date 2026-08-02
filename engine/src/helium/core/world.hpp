@@ -6,13 +6,15 @@
 #include <memory>
 #include <vector>
 
+#include "utils/singleton.hpp"
+
 
 namespace he
 {
-
+class root_system;
 class system_base;
 
-class world
+class world: public singleton<world>
 {
 private:
     struct systems_cache_entry final
@@ -21,18 +23,22 @@ private:
         std::weak_ptr<system_base> system;
     };
 
+    struct system_tree_entry final
+    {
+        // std::map<type_index_t, std::un>
+    };
+
 public:
     world();
 
 public:
-    static auto instance() -> world&;
+    template <std::derived_from<system_base> system_t>
+    auto get() -> system_t&;
 
-    template <std::derived_from<system_base> t>
-    static auto get_system() -> t&;
+    template <std::derived_from<system_base> system_t>
+    auto has() const -> bool;
 
-    static auto events() -> event_bus&;
-
-    static auto get_frame_number() -> uint16_t;
+    auto get_frame_number() -> uint16_t;
 
     auto tick() -> void;
 
@@ -42,23 +48,35 @@ private:
     auto traverse_systems_tree(std::weak_ptr<system_base> node) -> void;
 
 public:
+    inline static he::event_bus events;
+
+private:
     std::shared_ptr<system_base> _root_system;
 
     std::vector<systems_cache_entry> _systems_cache;
-
-    he::event_bus _events;
 };
 
 
-template <std::derived_from<system_base> t>
-auto world::get_system() -> t&
+template <std::derived_from<system_base> system_t>
+auto world::get() -> system_t&
 {
-    return *(static_cast<t*>(std::ranges::find_if(
-        instance()._systems_cache,
-        [look_for = type_index<t>::value()] (const auto& entry)
+    return *(static_cast<system_t*>(std::ranges::find_if(
+        _systems_cache,
+        [look_for = type_index<system_t>()] (const auto& entry)
         {
             return entry.type_index == look_for;
         })->system.lock().get()));
+}
+
+template <std::derived_from<system_base> system_t>
+auto world::has() const -> bool
+{
+    return std::ranges::any_of(
+        _systems_cache,
+        [look_for = type_index<system_t>()] (const auto& entry)
+        {
+            return entry.type_index == look_for;
+        });
 }
 
 }

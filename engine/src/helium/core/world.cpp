@@ -10,26 +10,14 @@ namespace he
 world::world()
     : _root_system{ std::make_shared<root_system>() }
 {
-    _events.on<system_instantiated>([this] (const auto& event) { rebuild_systems_cache(); });
-    _events.on<system_destroyed>([this] (const auto&) { rebuild_systems_cache(); });
+    events.on<system_instantiated>([this] (const auto& _) { rebuild_systems_cache(); });
+    events.on<system_destroyed>([this] (const auto&) { rebuild_systems_cache(); });
 
     _systems_cache.emplace_back(
         systems_cache_entry{
-            .type_index = type_index<root_system>::value(),
+            .type_index = type_index<root_system>(),
             .system = std::weak_ptr{ _root_system }
         });
-}
-
-auto world::instance() -> world&
-{
-    static world instance;
-
-    return instance;
-}
-
-auto world::events() -> event_bus&
-{
-    return instance()._events;
 }
 
 auto world::rebuild_systems_cache() -> void
@@ -38,7 +26,7 @@ auto world::rebuild_systems_cache() -> void
 
     _systems_cache.emplace_back(
         systems_cache_entry{
-            .type_index = type_index<root_system>::value(),
+            .type_index = type_index<root_system>(),
             .system = std::weak_ptr{ _root_system }
         });
 

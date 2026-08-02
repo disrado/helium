@@ -50,15 +50,19 @@ struct log
         ts&&... args,
         const std::source_location& location = std::source_location::current())
     {
-        he::world::get_system<logging>().log(
-            std::chrono::zoned_time{ std::chrono::current_zone(), std::chrono::system_clock::now() },
-            severity,
-            tag,
-            std::vformat(format, std::make_format_args(args...)),
-            location);
+        if (he::world::instance().has<logging>())
+        {
+            he::world::instance().get<logging>().log(
+                std::chrono::zoned_time{ std::chrono::current_zone(), std::chrono::system_clock::now() },
+                severity,
+                tag,
+                std::vformat(format, std::make_format_args(args...)),
+                location);
+        }
     }
 };
 
 template <typename... ts>
 log(severity severity, std::string_view tag, std::string_view, ts&&...) -> log<ts...>;
+
 }

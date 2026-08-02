@@ -23,7 +23,7 @@ auto logging::log(std::chrono::zoned_time<std::chrono::duration<std::chrono::sys
         std::format(
             "[{}][{}][{}][{}][{}:{}] {}",
             std::format("{:%d.%m.%Y_%T}", time),
-            he::world::get_frame_number(),
+            he::world::instance().get_frame_number(),
             magic_enum::enum_name(severity),
             tag,
             std::filesystem::path(location.file_name()).filename().string(),

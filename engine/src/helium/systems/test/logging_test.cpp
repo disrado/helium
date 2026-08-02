@@ -6,7 +6,7 @@
 
 TEST_CASE("logging_system")
 {
-    he::world::get_system<he::root_system>().add_subsystem<ne::logging>();
+    he::world::instance().get<he::root_system>().add_child<ne::logging>();
 
     ne::log{ info, "tag", "format: {}", "message", 10, std::string{} };
 
