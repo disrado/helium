@@ -4,3 +4,4 @@ deps/
 .cache
 .idea
 CMakeUserPresets.json
+CLAUDE.md
