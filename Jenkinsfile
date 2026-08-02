@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'helium-build-env:latest'
+            image 'helium-linux-build-env:latest'
             label 'linux'
         }
     }
