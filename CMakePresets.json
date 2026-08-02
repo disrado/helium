@@ -54,7 +54,8 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_COMPILER": "g++-16",
         "CMAKE_C_COMPILER": "gcc-16",
-        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -O2"
+        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -O2",
+        "CMAKE_EXE_LINKER_FLAGS": "-lstdc++exp"
       }
     }
   ]
