@@ -2,7 +2,6 @@
 
 #include <print>
 #include <ranges>
-#include <stacktrace>
 
 #include "helium/systems/root_system.hpp"
 #include "helium/core/world.hpp"
@@ -51,8 +50,6 @@ auto main() -> int
     container{}.bar<std::pair<int, int>>("");
 
     [[maybe_unused]] const auto& world{ he::world::instance() };
-
-    std::println("{}", std::stacktrace::current());
 
     auto tree{ he::ordered_tree<he::type_index_t, int>{ he::type_index<int>(), 4 } };
 
