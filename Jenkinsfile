@@ -19,6 +19,9 @@ pipeline {
             }
         }
     }
+    post {
+        always { cleanWs() }
+    }
 }
 
 def runInContainer(command) {
