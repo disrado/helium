@@ -6,8 +6,8 @@ pipeline {
     stages {
         stage('Configure') {
             parallel {
-                stage('Linux') {
-                    agent { label 'linux' }
+                stage('WSL') {
+                    agent { label 'wsl' }
                     steps { script { runInContainer('cmake --preset linux-release') } }
                 }
                 stage('Windows') {
@@ -18,8 +18,8 @@ pipeline {
         }
         stage('Build') {
             parallel {
-                stage('Linux') {
-                    agent { label 'linux' }
+                stage('WSL') {
+                    agent { label 'wsl' }
                     options { skipDefaultCheckout() }
                     steps { script { runInContainer('cmake --build build/linux-release') } }
                 }
@@ -32,8 +32,8 @@ pipeline {
         }
         stage('Test') {
             parallel {
-                stage('Linux') {
-                    agent { label 'linux' }
+                stage('WSL') {
+                    agent { label 'wsl' }
                     options { skipDefaultCheckout() }
                     steps {
                         script {
