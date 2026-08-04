@@ -1,26 +1,59 @@
 pipeline {
-    agent { label 'linux' }
+    agent none
     environment {
         IMAGE = 'helium-linux-build-env:latest'
     }
     stages {
         stage('Configure') {
-            steps { script { runInContainer('cmake --preset linux-release') } }
-        }
-        stage('Build') {
-            steps { script { runInContainer('cmake --build build/linux-release') } }
-        }
-        stage('Test') {
-            steps {
-                script {
-                    runInContainer('build/linux-release/engine/helium_test_suite')
-                    runInContainer('build/linux-release/game/game_test_suite')
+            parallel {
+                stage('Linux') {
+                    agent { label 'linux' }
+                    steps { script { runInContainer('cmake --preset linux-release') } }
+                }
+                stage('Windows') {
+                    agent { label 'windows' }
+                    steps { bat 'cmake --preset win-debug' }
                 }
             }
         }
-    }
-    post {
-        always { cleanWs() }
+        stage('Build') {
+            parallel {
+                stage('Linux') {
+                    agent { label 'linux' }
+                    options { skipDefaultCheckout() }
+                    steps { script { runInContainer('cmake --build build/linux-release') } }
+                }
+                stage('Windows') {
+                    agent { label 'windows' }
+                    options { skipDefaultCheckout() }
+                    steps { bat 'cmake --build build/win-debug' }
+                }
+            }
+        }
+        stage('Test') {
+            parallel {
+                stage('Linux') {
+                    agent { label 'linux' }
+                    options { skipDefaultCheckout() }
+                    steps {
+                        script {
+                            runInContainer('build/linux-release/engine/helium_test_suite')
+                            runInContainer('build/linux-release/game/game_test_suite')
+                        }
+                    }
+                    post { always { cleanWs() } }
+                }
+                stage('Windows') {
+                    agent { label 'windows' }
+                    options { skipDefaultCheckout() }
+                    steps {
+                        bat 'build\\win-debug\\engine\\helium_test_suite.exe'
+                        bat 'build\\win-debug\\game\\game_test_suite.exe'
+                    }
+                    post { always { cleanWs() } }
+                }
+            }
+        }
     }
 }
 
