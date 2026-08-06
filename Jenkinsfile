@@ -1,5 +1,8 @@
 pipeline {
     agent none
+    options {
+        disableConcurrentBuilds(abortPrevious: true)
+    }
     environment {
         IMAGE = 'helium-linux-build-env:latest'
     }
