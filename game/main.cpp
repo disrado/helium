@@ -1,5 +1,3 @@
-#include "SDL3/SDL.h"
-
 #include <print>
 #include <ranges>
 
@@ -38,15 +36,6 @@ struct container
 
 auto main() -> int
 {
-    if (auto ticks{ SDL_Time{} }; SDL_GetCurrentTime(&ticks))
-    {
-        std::println("current time: {}", ticks);
-    }
-    else
-    {
-        std::println("failed to retrieve current time");
-    }
-
     container{}.bar<std::pair<int, int>>("");
 
     [[maybe_unused]] const auto& world{ he::world::instance() };
