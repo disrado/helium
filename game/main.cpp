@@ -36,19 +36,5 @@ struct container
 
 auto main() -> int
 {
-    container{}.bar<std::pair<int, int>>("");
-
-    [[maybe_unused]] const auto& world{ he::world::instance() };
-
-    auto tree{ he::ordered_tree<he::type_index_t, int>{ he::type_index<int>(), 4 } };
-
-    tree.emplace(he::type_index<int>(), he::type_index<bool>(), int{ 8 });
-    tree.emplace(he::type_index<int>(), he::type_index<double>(), int{ 16 });
-
-    for (const auto& value : tree | std::views::reverse)
-    {
-        std::println("tree element: {}", value);
-    }
-
     return 0;
 }
