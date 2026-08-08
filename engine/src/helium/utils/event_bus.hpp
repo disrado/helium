@@ -9,6 +9,8 @@
 namespace he
 {
 
+// Type-erased publisher/subscriber bus
+// cv/ref-agnostic
 class event_bus final
 {
 public:
@@ -61,28 +63,34 @@ template <typename event_t, typename callable_t>
     requires delegates::bindable<callable_t, event_t>
 auto event_bus::on(callable_t&& callback) -> handle
 {
-    return on<event_t>(delegate<event_t>{ std::forward<callable_t>(callback) });
+    using raw_event_t = std::remove_cvref_t<event_t>;
+
+    return on<raw_event_t>(delegate<raw_event_t>{ std::forward<callable_t>(callback) });
 }
 
 template <typename event_t, typename lifetime_owner_t, typename callable_t>
     requires delegates::lifetime_bound_bindable<callable_t, event_t>
 auto event_bus::on(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback) -> handle
 {
-    return on<event_t>(delegate<event_t>{ owner, std::forward<callable_t>(callback) });
+    using raw_event_t = std::remove_cvref_t<event_t>;
+
+    return on<raw_event_t>(delegate<raw_event_t>{ owner, std::forward<callable_t>(callback) });
 }
 
 template <typename event_t>
 auto event_bus::on(delegate<event_t> delegate) -> handle
 {
-    if (const auto event_id{ type_index<event_t>() }; _events.contains(type_index<event_t>()))
+    using raw_event_t = std::remove_cvref_t<event_t>;
+
+    if (const auto event_id{ type_index<raw_event_t>() }; _events.contains(type_index<raw_event_t>()))
     {
         return handle{
-            .id = access_slot<event_t>().delegate.bind(std::move(delegate)).id
+            .id = access_slot<raw_event_t>().delegate.bind(std::move(delegate)).id
         };
     }
     else
     {
-        auto slot{ std::make_shared<event_slot<event_t>>() };
+        auto slot{ std::make_shared<event_slot<raw_event_t>>() };
 
         const auto return_handle{ handle{
             .id = slot->delegate.bind(std::move(delegate)).id
@@ -97,14 +105,16 @@ auto event_bus::on(delegate<event_t> delegate) -> handle
 template <typename event_t>
 auto event_bus::unbind(const handle& target_handle) -> bool
 {
-    if (const auto event_id{ type_index<event_t>() }; _events.contains(type_index<event_t>()))
+    using raw_event_t = std::remove_cvref_t<event_t>;
+
+    if (const auto event_id{ type_index<raw_event_t>() }; _events.contains(type_index<raw_event_t>()))
     {
-        const auto unbound{ access_slot<event_t>().delegate.unbind(
-            typename multicast_delegate<event_t>::handle{
+        const auto unbound{ access_slot<raw_event_t>().delegate.unbind(
+            typename multicast_delegate<raw_event_t>::handle{
                 .id = target_handle.id
             }) };
 
-        if (!access_slot<event_t>().delegate.is_bound())
+        if (!access_slot<raw_event_t>().delegate.is_bound())
         {
             _events.erase(event_id);
         }
@@ -118,9 +128,11 @@ auto event_bus::unbind(const handle& target_handle) -> bool
 template <typename event_t>
 auto event_bus::emit(event_t&& event) -> bool
 {
-    if (_events.contains(type_index<event_t>()))
+    using raw_event_t = std::remove_cvref_t<event_t>;
+
+    if (_events.contains(type_index<raw_event_t>()))
     {
-        access_slot<event_t>().delegate.execute(std::forward<event_t>(event));
+        access_slot<raw_event_t>().delegate.execute(std::forward<raw_event_t>(event));
 
         return true;
     }

@@ -79,6 +79,47 @@ TEST_CASE("event_bus")
         REQUIRE(system_name == "backend_system"s);
     }
 
+    SECTION("emitting an lvalue")
+    {
+        auto event_bus{ he::event_bus{} };
+
+        auto system_name{ ""s };
+
+        event_bus.on<system_created>([&system_name] (const system_created& event) { system_name = event.system_name; });
+
+        auto event{ system_created{ .system_name = "backend_system"s } };
+        REQUIRE(event_bus.emit(event));
+
+        REQUIRE(system_name == "backend_system"s);
+    }
+
+    SECTION("interface ignores cvref of event type")
+    {
+        auto event_bus{ he::event_bus{} };
+
+        auto plain_fired{ false };
+        auto const_fired{ false };
+        auto ref_fired{ false };
+        auto rvalue_fired{ false };
+
+        const auto plain_handle{ event_bus.on<system_created>([&plain_fired] (const auto&) { plain_fired = true; }) };
+        const auto const_handle{ event_bus.on<const system_created>([&const_fired] (const auto&) { const_fired = true; }) };
+        const auto ref_handle{ event_bus.on<system_created&>([&ref_fired] (const auto&) { ref_fired = true; }) };
+        const auto rvalue_handle{ event_bus.on<system_created&&>([&rvalue_fired] (const auto&) { rvalue_fired = true; }) };
+
+        auto event{ system_created{} };
+        REQUIRE(event_bus.emit<system_created&>(event));
+        REQUIRE(plain_fired);
+        REQUIRE(const_fired);
+        REQUIRE(ref_fired);
+        REQUIRE(rvalue_fired);
+
+        REQUIRE(event_bus.unbind<system_created&&>(plain_handle));
+        REQUIRE(event_bus.unbind<const system_created>(ref_handle));
+        REQUIRE(event_bus.unbind<system_created&>(const_handle));
+        REQUIRE(event_bus.unbind<system_created>(rvalue_handle));
+    }
+
     SECTION("emitting multiple events")
     {
         auto event_bus{ he::event_bus{} };
@@ -92,6 +133,22 @@ TEST_CASE("event_bus")
         REQUIRE(event_bus.emit(state_changed{}));
 
         REQUIRE(counter == 2);
+    }
+
+    SECTION("multiple listeners, same type")
+    {
+        auto event_bus{ he::event_bus{} };
+
+        auto first_fired{ false };
+        auto second_fired{ false };
+
+        event_bus.on<system_created>([&first_fired] (const auto&) { first_fired = true; });
+        event_bus.on<system_created>([&second_fired] (const auto&) { second_fired = true; });
+
+        REQUIRE(event_bus.emit(system_created{}));
+
+        REQUIRE(first_fired);
+        REQUIRE(second_fired);
     }
 
     SECTION("unbinding")
@@ -111,9 +168,17 @@ TEST_CASE("event_bus")
         REQUIRE(event_bus.unbind<system_created>(system_created_handle));
         REQUIRE(event_bus.unbind<state_changed>(state_changed_handle));
 
-        event_bus.emit(system_created{});
-        event_bus.emit(state_changed{});
+        REQUIRE_FALSE(event_bus.emit(system_created{}));
+        REQUIRE_FALSE(event_bus.emit(state_changed{}));
 
         REQUIRE(counter == 2);
+    }
+
+    SECTION("unregistered event type")
+    {
+        auto event_bus{ he::event_bus{} };
+
+        REQUIRE_FALSE(event_bus.emit(system_created{}));
+        REQUIRE_FALSE(event_bus.unbind<system_created>(he::event_bus::handle{}));
     }
 }
