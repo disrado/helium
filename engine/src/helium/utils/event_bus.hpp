@@ -14,12 +14,12 @@ class event_bus final
 public:
     struct handle final
     {
-        uint32_t id;
+        using handle_id_t = uint32_t;
+
+        handle_id_t id;
     };
 
 private:
-    using handle_id_t = uint32_t;
-
     struct event_slot_base
     {
         virtual ~event_slot_base() = default;
