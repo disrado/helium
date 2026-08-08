@@ -1,14 +1,6 @@
 {
   "dependencies": [
     "magic-enum",
-    {
-      "name": "sdl3",
-      "default-features": false,
-      "features": [
-        { "name": "x11", "platform": "linux" },
-        { "name": "wayland", "platform": "linux" }
-      ]
-    },
     "catch2"
   ]
 }
