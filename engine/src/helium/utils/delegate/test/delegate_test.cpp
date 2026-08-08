@@ -150,6 +150,30 @@ TEST_CASE("delegate execution")
         REQUIRE(counter == 1);
     }
 
+    SECTION("execution through member pointer")
+    {
+        struct owner final
+        {
+            long& counter;
+            auto increment() -> void { counter++; }
+        };
+
+        auto lifetime_owner{ std::make_shared<owner>(counter) };
+
+        const auto delegate{ he::delegate{ std::weak_ptr{ lifetime_owner }, &owner::increment } };
+
+        delegate.execute();
+        REQUIRE(counter == 1);
+
+        delegate.execute();
+        REQUIRE(counter == 2);
+
+        lifetime_owner.reset();
+
+        delegate.execute();
+        REQUIRE(counter == 2);
+    }
+
     SECTION("execution after rebinding")
     {
         auto delegate{ he::delegate{ decrement_counter } };

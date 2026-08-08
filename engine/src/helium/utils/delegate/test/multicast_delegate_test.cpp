@@ -91,6 +91,26 @@ TEST_CASE("multicast_delegate")
         REQUIRE_FALSE(delegate.is_bound());
     }
 
+    SECTION("unbinding default handle")
+    {
+        auto delegate{ he::multicast_delegate{} };
+
+        delegate.bind([] {});
+
+        REQUIRE_FALSE(delegate.unbind(decltype(delegate)::handle{}));
+        REQUIRE(delegate.is_bound());
+    }
+
+    SECTION("unbinding twice")
+    {
+        auto delegate{ he::multicast_delegate{} };
+
+        const auto handle{ delegate.bind([] {}) };
+
+        REQUIRE(delegate.unbind(handle));
+        REQUIRE_FALSE(delegate.unbind(handle));
+    }
+
     SECTION("unbinding of all")
     {
         auto delegate{ he::multicast_delegate{} };
