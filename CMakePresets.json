@@ -17,8 +17,6 @@
       "name": "win",
       "hidden": true,
       "inherits": "vcpkg",
-      "cacheVariables": {
-      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -61,9 +59,47 @@
   ],
   "buildPresets": [
     {
+      "name": "win-debug",
+      "configurePreset": "win-debug"
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release"
+    },
+    {
       "name": "editor",
       "configurePreset": "win-debug",
       "targets": ["godot_editor"]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "win-debug",
+      "configurePreset": "win-debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "output": { "outputOnFailure": true }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "win-debug",
+      "steps": [
+        { "type": "configure", "name": "win-debug" },
+        { "type": "build", "name": "win-debug" },
+        { "type": "test", "name": "win-debug" }
+      ]
+    },
+    {
+      "name": "linux-release",
+      "steps": [
+        { "type": "configure", "name": "linux-release" },
+        { "type": "build", "name": "linux-release" },
+        { "type": "test", "name": "linux-release" }
+      ]
     }
   ]
 }

@@ -5,6 +5,8 @@ project(helium LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+enable_testing()
+
 add_subdirectory(src)
 
 include(deps/godot.cmake)

@@ -53,3 +53,5 @@ set(test_sources
 
 add_executable(helium_test_suite ${test_sources})
 target_link_libraries(helium_test_suite PRIVATE helium Catch2::Catch2WithMain)
+
+add_test(NAME helium_tests COMMAND helium_test_suite)
