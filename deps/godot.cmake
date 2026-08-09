@@ -9,7 +9,7 @@ if(SCONS_EXECUTABLE)
     endif()
 
     if(WIN32)
-        set(HELIUM_GODOT_PLATFORM_ARGS platform=windows d3d12=no use_llvm=yes)
+        set(HELIUM_GODOT_PLATFORM_ARGS platform=windows d3d12=no angle=no use_llvm=yes)
     else()
         set(HELIUM_GODOT_PLATFORM_ARGS platform=linuxbsd)
     endif()
