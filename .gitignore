@@ -1,6 +1,7 @@
 .cmake/
 build/
-deps/
+deps/*
+!deps/godot.cmake
 .godot/
 .cache
 .idea
