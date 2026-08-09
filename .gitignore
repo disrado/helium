@@ -1,6 +1,7 @@
 .cmake/
 build/
 deps/
+.godot/
 .cache
 .idea
 CMakeUserPresets.json

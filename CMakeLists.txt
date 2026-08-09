@@ -6,3 +6,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_subdirectory(src)
+
+include(deps/godot.cmake)
+
+# Keeps the Godot project (project.godot at repo root) from scanning/reimporting these as resources.
+# Recreated on every configure since neither survives a fresh build dir / submodule reset.
+file(TOUCH ${CMAKE_BINARY_DIR}/.gdignore)
+file(TOUCH ${CMAKE_SOURCE_DIR}/deps/godot/.gdignore)

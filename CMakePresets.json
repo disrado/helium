@@ -58,5 +58,12 @@
         "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -Wpedantic -O2"
       }
     }
+  ],
+  "buildPresets": [
+    {
+      "name": "editor",
+      "configurePreset": "win-debug",
+      "targets": ["godot_editor"]
+    }
   ]
 }

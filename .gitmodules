@@ -1,3 +1,7 @@
 [submodule "deps/godot_cpp"]
 	path = deps/godot_cpp
 	url = https://github.com/godotengine/godot-cpp.git
+[submodule "deps/godot"]
+	path = deps/godot
+	url = https://github.com/godotengine/godot.git
+	branch = master
