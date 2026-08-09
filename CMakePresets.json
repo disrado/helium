@@ -67,8 +67,13 @@
       "configurePreset": "linux-release"
     },
     {
-      "name": "editor",
+      "name": "editor-windows",
       "configurePreset": "win-debug",
+      "targets": ["godot_editor"]
+    },
+    {
+      "name": "editor-linux",
+      "configurePreset": "linux-release",
       "targets": ["godot_editor"]
     }
   ],
