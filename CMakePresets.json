@@ -109,7 +109,7 @@
     },
     {
       "name": "editor-windows-release",
-      "configurePreset": "win-debug",
+      "configurePreset": "win-release",
       "targets": ["godot_editor_release"]
     },
     {

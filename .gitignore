@@ -3,6 +3,7 @@ build/
 deps/*
 !deps/godot.cmake
 .godot/
+*.uid
 .cache
 .idea
 CMakeUserPresets.json

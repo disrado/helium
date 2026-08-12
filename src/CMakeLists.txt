@@ -34,6 +34,11 @@ target_link_libraries(helium PUBLIC magic_enum::magic_enum)
 
 target_include_directories(helium PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+if(WIN32)
+    # CMake's default CRT resolution lands on the wrong runtime. Force the correct, config-aware value explicitly
+    set_target_properties(helium PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
+
 
 project(helium_tests LANGUAGES CXX)
 
@@ -53,5 +58,10 @@ set(test_sources
 
 add_executable(helium_test_suite ${test_sources})
 target_link_libraries(helium_test_suite PRIVATE helium Catch2::Catch2WithMain)
+
+if(WIN32)
+    # CMake's default CRT resolution lands on the wrong runtime. Force the correct, config-aware value explicitly
+    set_target_properties(helium_test_suite PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
 
 add_test(NAME helium_tests COMMAND helium_test_suite)
