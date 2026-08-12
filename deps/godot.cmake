@@ -13,9 +13,25 @@ if(SCONS_EXECUTABLE)
     else()
         set(HELIUM_GODOT_PLATFORM_ARGS platform=linuxbsd)
     endif()
+    set(HELIUM_GODOT_COMMON_ARGS ${HELIUM_GODOT_PLATFORM_ARGS} accesskit=no "-j${HELIUM_NPROC}")
 
-    add_custom_target(godot_editor
-        COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_PLATFORM_ARGS} target=editor dev_build=yes accesskit=no "-j${HELIUM_NPROC}"
+    add_custom_target(godot_editor_dev
+        COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=editor dev_build=yes
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/deps/godot
+        USES_TERMINAL VERBATIM)
+
+    add_custom_target(godot_editor_release
+        COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=editor dev_build=no
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/deps/godot
+        USES_TERMINAL VERBATIM)
+
+    add_custom_target(godot_game_debug
+        COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=template_debug
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/deps/godot
+        USES_TERMINAL VERBATIM)
+
+    add_custom_target(godot_game_release
+        COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=template_release
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/deps/godot
         USES_TERMINAL VERBATIM)
 endif()
