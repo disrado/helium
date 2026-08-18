@@ -13,7 +13,6 @@ auto system_node::_bind_methods() -> void
 auto system_node::_ready() -> void
 {
     _root = std::make_shared<root_system>();
-    godot::UtilityFunctions::print("helium: system_node ready steady");
 }
 
 }
