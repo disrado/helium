@@ -11,6 +11,8 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 enable_testing()
 
+string(TOLOWER "${CMAKE_BUILD_TYPE}" HELIUM_BUILD_TYPE)
+
 add_subdirectory(src)
 
 # do not propagate our compilation flags to godot-cpp
