@@ -36,6 +36,7 @@ endif()
 add_subdirectory(src/gdextension)
 
 include(deps/godot.cmake)
+include(test/game_test.cmake)
 
 # Keeps the Godot project (project.godot at repo root) from scanning/reimporting these as resources.
 # Recreated on every configure since neither survives a fresh build dir / submodule reset.

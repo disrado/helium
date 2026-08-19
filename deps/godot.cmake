@@ -26,12 +26,12 @@ if(SCONS_EXECUTABLE)
         USES_TERMINAL VERBATIM)
 
     add_custom_target(godot_game_debug
-        COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=template_debug
+        COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=template_debug extra_suffix=.helium-debug
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/deps/godot
         USES_TERMINAL VERBATIM)
 
     add_custom_target(godot_game_release
-        COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=template_release
+        COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=template_release extra_suffix=.helium-release
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/deps/godot
         USES_TERMINAL VERBATIM)
 endif()
