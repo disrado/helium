@@ -27,13 +27,13 @@ if(SCONS_EXECUTABLE)
 
     add_custom_target(godot_game_debug
         COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=template_debug
-            extra_suffix=.${CMAKE_PROJECT_NAME}-debug disable_path_overrides=no
+            extra_suffix=${CMAKE_PROJECT_NAME}-debug disable_path_overrides=no
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/deps/godot
         USES_TERMINAL VERBATIM)
 
     add_custom_target(godot_game_release
         COMMAND ${SCONS_EXECUTABLE} ${HELIUM_GODOT_COMMON_ARGS} target=template_release
-            extra_suffix=.${CMAKE_PROJECT_NAME}-release disable_path_overrides=no
+            extra_suffix=${CMAKE_PROJECT_NAME}-release disable_path_overrides=no
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/deps/godot
         USES_TERMINAL VERBATIM)
 endif()
