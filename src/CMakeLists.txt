@@ -20,11 +20,29 @@ set(helium_headers
     core/delegate/delegate.hpp
     core/delegate/multicast_delegate.hpp
     core/delegate/utils.hpp
+    core/execution/action/action_base.hpp
+    core/execution/action/action.h
+    core/execution/action/async_action.h
+    core/execution/action/ticking_action.h
+    core/execution/utils.hpp
+    core/execution/composite/composite_base.hpp
+    core/execution/run.hpp
+    core/execution/composite/single.hpp
+    core/execution/composite/sequence.h
+    core/execution/composite/parallel.h
     systems/logging.hpp
     systems/system_base.hpp
     systems/root_system.hpp)
 
 set(helium_sources
+    core/execution/action/action_base.cpp
+    core/execution/action/action.cpp
+    core/execution/action/async_action.cpp
+    core/execution/action/ticking_action.cpp
+    core/execution/composite/single.cpp
+    core/execution/run.cpp
+    core/execution/composite/sequence.cpp
+    core/execution/composite/parallel.cpp
     systems/logging.cpp
     systems/system_base.cpp)
 
@@ -54,6 +72,12 @@ set(test_sources
     core/delegate/test/delegate_test.cpp
     core/delegate/test/multicast_delegate_test.cpp
     core/test/event_bus_test.cpp
+    core/execution/test/action_test.cpp
+    core/execution/test/run_test.cpp
+    core/execution/test/async_action_test.cpp
+    core/execution/test/ticking_action_test.cpp
+    core/execution/test/run_sequence_test.cpp
+    core/execution/test/run_parallel_test.cpp
 )
 
 add_executable(helium_test_suite ${test_sources})
