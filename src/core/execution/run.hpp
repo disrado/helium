@@ -12,7 +12,7 @@ namespace he
 class run final
 {
 public:
-    run(exec::action_like auto target);
+    explicit run(exec::action_like auto target);
 
     auto execute() const -> void;
     auto abort() const -> void;
