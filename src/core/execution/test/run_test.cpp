@@ -1,6 +1,5 @@
-#include "../action/action.h"
+#include "core/execution/action/action.hpp"
 #include "core/execution/run.hpp"
-#include "../composite/single.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -9,37 +8,29 @@
 
 TEST_CASE("single execution")
 {
-    auto action = he::action{
-        he::delegate<he::action::exec_token&, const he::action_base::context&>{
-            [] (auto& token, const auto& _)
-            {
-                token.fail();
-            }
+    class custom_action: public he::action<custom_action>
+    {
+    public:
+        auto execute() -> void override
+        {
+            std::println("custom_action");
+
+            succeed();
         }
     };
 
-    auto then_action = he::action{
-        he::delegate<he::action::exec_token&, const he::action_base::context&>{
-            [] ([[maybe_unused]] auto& token, const auto& _)
-            {
-                std::println("then action");
-            }
-        }
+    const auto chain{
+        he::run(
+            custom_action{}
+            .then(
+                custom_action{}
+                .then(
+                    custom_action{}
+                    .then(custom_action{}))
+                .otherwise(custom_action{}))
+            .otherwise(custom_action{})
+        )
     };
 
-    auto else_action = he::action{
-        he::delegate<he::action::exec_token&, const he::action_base::context&>{
-            [] ([[maybe_unused]] auto& token, const auto& _)
-            {
-                std::println("else action");
-            }
-        }
-    };
-
-    auto runner{ he::run(he::single{ action })
-        .and_then(he::single{ then_action })
-        .or_else(he::single{ else_action })
-    };
-
-    runner.execute();
+    chain.execute();
 }

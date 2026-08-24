@@ -16,5 +16,6 @@ template <typename t>
 concept action_like = std::is_base_of_v<action_base, t>;
 
 template <typename t>
-concept run_like = std::is_base_of_v<composite_base, t>;
+concept composite_like = std::is_base_of_v<composite_base, t>;
+
 }
