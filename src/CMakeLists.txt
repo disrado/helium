@@ -18,6 +18,7 @@ set(helium_headers
     core/type_traits/type_name.hpp
     core/type_traits/type_id.hpp
     core/delegate/delegate.hpp
+    core/delegate/rdelegate.hpp
     core/delegate/multicast_delegate.hpp
     core/delegate/utils.hpp
     core/execution/action/action.hpp
@@ -57,6 +58,7 @@ set(test_sources
     core/type_traits/test/type_name_test.cpp
     core/type_traits/test/type_id_test.cpp
     core/delegate/test/delegate_test.cpp
+    core/delegate/test/rdelegate_test.cpp
     core/delegate/test/multicast_delegate_test.cpp
     core/test/event_bus_test.cpp
     core/execution/test/action_test.cpp
