@@ -70,6 +70,68 @@ TEST_CASE("delegate")
 
         REQUIRE(delegate.is_bound());
     }
+
+    SECTION("copy construction")
+    {
+        auto counter{ 0l };
+
+        const auto original{ he::delegate{ [&counter] { counter++; } } };
+        const auto copy{ original };
+
+        REQUIRE(original.is_bound());
+        REQUIRE(copy.is_bound());
+
+        original.execute();
+        copy.execute();
+
+        REQUIRE(counter == 2);
+    }
+
+    SECTION("copy assignment")
+    {
+        auto counter{ 0l };
+
+        const auto original{ he::delegate{ [&counter] { counter++; } } };
+        auto copy{ he::delegate{} };
+
+        copy = original;
+
+        REQUIRE(copy.is_bound());
+
+        copy.execute();
+
+        REQUIRE(counter == 1);
+    }
+
+    SECTION("move construction")
+    {
+        auto counter{ 0l };
+
+        auto original{ he::delegate{ [&counter] { counter++; } } };
+        const auto moved{ std::move(original) };
+
+        REQUIRE(moved.is_bound());
+
+        moved.execute();
+
+        REQUIRE(counter == 1);
+    }
+
+    SECTION("move assignment")
+    {
+        auto counter{ 0l };
+
+        auto original{ he::delegate{ [&counter] { counter++; } } };
+        auto target{ he::delegate{} };
+
+        target = std::move(original);
+
+        REQUIRE(target.is_bound());
+
+        target.execute();
+
+        REQUIRE(counter == 1);
+    }
 }
 
 TEST_CASE("delegate execution")
@@ -191,6 +253,64 @@ TEST_CASE("delegate execution")
 
         delegate.execute();
         delegate.execute();
+        REQUIRE(counter == 1);
+    }
+
+    SECTION("rebinding to a lifetime-owned callback")
+    {
+        struct owner final
+        {
+        };
+
+        auto delegate{ he::delegate{ increment_counter } };
+
+        auto lifetime_owner{ std::make_shared<owner>() };
+
+        delegate.bind(std::weak_ptr{ lifetime_owner }, increment_counter);
+
+        REQUIRE(delegate.try_execute());
+        REQUIRE(counter == 1);
+
+        lifetime_owner.reset();
+
+        REQUIRE_FALSE(delegate.try_execute());
+        REQUIRE(counter == 1);
+    }
+
+    SECTION("is_bound reflects assignment, not lifetime owner liveness")
+    {
+        struct owner final
+        {
+        };
+
+        auto lifetime_owner{ std::make_shared<owner>() };
+
+        const auto delegate{ he::delegate{ std::weak_ptr{ lifetime_owner }, increment_counter } };
+
+        REQUIRE(delegate.is_bound());
+
+        lifetime_owner.reset();
+
+        REQUIRE(delegate.is_bound());
+        REQUIRE_FALSE(delegate.try_execute());
+    }
+
+    SECTION("try_execute reflects lifetime owner dying mid-flight")
+    {
+        struct owner final
+        {
+        };
+
+        auto lifetime_owner{ std::make_shared<owner>() };
+
+        const auto delegate{ he::delegate{ std::weak_ptr{ lifetime_owner }, increment_counter } };
+
+        REQUIRE(delegate.try_execute());
+        REQUIRE(counter == 1);
+
+        lifetime_owner.reset();
+
+        REQUIRE_FALSE(delegate.try_execute());
         REQUIRE(counter == 1);
     }
 

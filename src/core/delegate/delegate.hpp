@@ -40,7 +40,9 @@ public:
 
     [[nodiscard]] auto try_execute(arg_ts... args) const -> bool;
 
-    auto execute(arg_ts... args) const -> void;
+    template <typename... ts>
+        requires (sizeof...(ts) == sizeof...(arg_ts)) && (std::convertible_to<ts, arg_ts> && ...)
+    auto execute(ts&&... args) const -> void;
 
     [[nodiscard]] auto is_bound() const -> bool;
 
@@ -114,11 +116,13 @@ auto delegate<arg_ts...>::try_execute(arg_ts... args) const -> bool
 }
 
 template <typename... arg_ts>
-auto delegate<arg_ts...>::execute(arg_ts... args) const -> void
+template <typename... ts>
+    requires (sizeof...(ts) == sizeof...(arg_ts)) && (std::convertible_to<ts, arg_ts> && ...)
+auto delegate<arg_ts...>::execute(ts&&... args) const -> void
 {
     if (_callback)
     {
-        std::invoke(_callback, std::forward<arg_ts>(args)...);
+        std::invoke(_callback, std::forward<ts>(args)...);
     }
 }
 

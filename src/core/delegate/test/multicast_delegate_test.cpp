@@ -126,6 +126,93 @@ TEST_CASE("multicast_delegate")
         REQUIRE_FALSE(delegate.is_bound());
     }
 
+    SECTION("copy construction")
+    {
+        auto counter{ 0l };
+
+        auto original{ he::multicast_delegate{} };
+        original.bind([&counter] { counter++; });
+
+        const auto copy{ original };
+
+        REQUIRE(original.is_bound());
+        REQUIRE(copy.is_bound());
+
+        original.execute();
+        copy.execute();
+
+        REQUIRE(counter == 2);
+    }
+
+    SECTION("copy assignment")
+    {
+        auto counter{ 0l };
+
+        auto original{ he::multicast_delegate{} };
+        original.bind([&counter] { counter++; });
+
+        auto copy{ he::multicast_delegate{} };
+        copy = original;
+
+        REQUIRE(copy.is_bound());
+
+        copy.execute();
+
+        REQUIRE(counter == 1);
+    }
+
+    SECTION("move construction")
+    {
+        auto counter{ 0l };
+
+        auto original{ he::multicast_delegate{} };
+        original.bind([&counter] { counter++; });
+
+        const auto moved{ std::move(original) };
+
+        REQUIRE(moved.is_bound());
+
+        moved.execute();
+
+        REQUIRE(counter == 1);
+    }
+
+    SECTION("move assignment")
+    {
+        auto counter{ 0l };
+
+        auto original{ he::multicast_delegate{} };
+        original.bind([&counter] { counter++; });
+
+        auto target{ he::multicast_delegate{} };
+        target = std::move(original);
+
+        REQUIRE(target.is_bound());
+
+        target.execute();
+
+        REQUIRE(counter == 1);
+    }
+
+    SECTION("is_bound reflects assignment, not lifetime owner liveness")
+    {
+        struct owner final
+        {
+        };
+
+        auto delegate{ he::multicast_delegate{} };
+
+        auto lifetime_owner{ std::make_shared<owner>() };
+
+        delegate.bind(std::weak_ptr{ lifetime_owner }, [] {});
+
+        REQUIRE(delegate.is_bound());
+
+        lifetime_owner.reset();
+
+        REQUIRE(delegate.is_bound());
+    }
+
 }
 
 TEST_CASE("multicast_delegate execution")
@@ -225,6 +312,26 @@ TEST_CASE("multicast_delegate execution")
         REQUIRE(delegate.execute());
 
         REQUIRE(counter == 3);
+    }
+
+    SECTION("verifying parameters consistency")
+    {
+        constexpr auto first_value{ 29ul };
+        constexpr auto second_value{ false };
+
+        auto are_values_valid{ false };
+
+        auto delegate{ he::multicast_delegate<uint32_t, bool>{} };
+
+        delegate.bind(
+            [&are_values_valid] (uint32_t first_argument, bool second_argument)
+            {
+                are_values_valid = first_value == first_argument && second_value == second_argument;
+            });
+
+        delegate.execute(uint32_t{ first_value }, bool{ second_value });
+
+        REQUIRE(are_values_valid);
     }
 
 }

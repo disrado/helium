@@ -43,7 +43,9 @@ public:
 
     auto unbind_all() -> void;
 
-    auto execute(arg_ts&&... args) const -> bool;
+    template <typename... ts>
+        requires (sizeof...(ts) == sizeof...(arg_ts)) && (std::convertible_to<ts, arg_ts> && ...)
+    auto execute(ts&&... args) const -> bool;
 
     [[nodiscard]] auto is_bound() const -> bool;
 
@@ -106,11 +108,13 @@ auto multicast_delegate<arg_ts...>::unbind_all() -> void
 }
 
 template <typename... arg_ts>
-auto multicast_delegate<arg_ts...>::execute(arg_ts&&... args) const -> bool
+template <typename... ts>
+    requires (sizeof...(ts) == sizeof...(arg_ts)) && (std::convertible_to<ts, arg_ts> && ...)
+auto multicast_delegate<arg_ts...>::execute(ts&&... args) const -> bool
 {
     for (const auto& entry: _bound_list)
     {
-        entry._delegate.execute(std::forward<arg_ts>(args)...);
+        entry._delegate.execute(args...);
     }
 
     return !_bound_list.empty();
