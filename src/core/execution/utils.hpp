@@ -2,20 +2,16 @@
 
 #include <type_traits>
 
-namespace he
+namespace he::exec
 {
-class action_base;
-class composite_base;
+class basic_action;
 }
 
 
-namespace he
+namespace he::exec
 {
 
 template <typename t>
-concept action_like = std::is_base_of_v<action_base, t>;
-
-template <typename t>
-concept composite_like = std::is_base_of_v<composite_base, t>;
+concept action_like = std::is_base_of_v<basic_action, t>;
 
 }
