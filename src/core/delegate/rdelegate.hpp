@@ -74,7 +74,7 @@ auto rdelegate<return_t, arg_ts...>::bind(callable_t&& callback) -> void
 {
     _callback = [callback = std::forward<decltype(callback)>(callback)] (arg_ts... args)
     {
-        return std::invoke(callback, std::forward<arg_ts>(args)...);
+        return std::invoke_r<return_t>(callback, std::forward<arg_ts>(args)...);
     };
 }
 
@@ -89,11 +89,11 @@ auto rdelegate<return_t, arg_ts...>::bind(std::weak_ptr<lifetime_owner_t> owner,
         {
             if constexpr (std::is_member_function_pointer_v<decltype(callback)>)
             {
-                return std::invoke(callback, *locked_owner, std::forward<arg_ts>(args)...);
+                return std::invoke_r<return_t>(callback, *locked_owner, std::forward<arg_ts>(args)...);
             }
             else
             {
-                return std::invoke(callback, std::forward<arg_ts>(args)...);
+                return std::invoke_r<return_t>(callback, std::forward<arg_ts>(args)...);
             }
         }
 
