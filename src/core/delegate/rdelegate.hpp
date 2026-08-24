@@ -23,20 +23,20 @@ public:
     rdelegate& operator =(rdelegate&&) = default;
 
     template <typename callable_t>
-        requires delegates::bindable<callable_t, arg_ts...>
+        requires delegates::rbindable<return_t, callable_t, arg_ts...>
     explicit rdelegate(callable_t&& callback);
 
     template <typename lifetime_owner_t, typename callable_t>
-        requires delegates::lifetime_bound_bindable<callable_t, arg_ts...>
+        requires delegates::lifetime_bound_rbindable<return_t, callable_t, arg_ts...>
     rdelegate(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback);
 
 public:
     template <typename callable_t>
-        requires delegates::bindable<callable_t, arg_ts...>
+        requires delegates::rbindable<return_t, callable_t, arg_ts...>
     auto bind(callable_t&& callback) -> void;
 
     template <typename lifetime_owner_t, typename callable_t>
-        requires delegates::lifetime_bound_bindable<callable_t, arg_ts...>
+        requires delegates::lifetime_bound_rbindable<return_t, callable_t, arg_ts...>
     auto bind(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback) -> void;
 
     [[nodiscard]] auto try_execute(arg_ts... args) const -> std::optional<return_t>;
@@ -53,7 +53,7 @@ private:
 
 template <typename return_t, typename... arg_ts>
 template <typename callable_t>
-    requires delegates::bindable<callable_t, arg_ts...>
+    requires delegates::rbindable<return_t, callable_t, arg_ts...>
 rdelegate<return_t, arg_ts...>::rdelegate(callable_t&& callback)
 {
     bind(std::forward<decltype(callback)>(callback));
@@ -61,7 +61,7 @@ rdelegate<return_t, arg_ts...>::rdelegate(callable_t&& callback)
 
 template <typename return_t, typename... arg_ts>
 template <typename lifetime_owner_t, typename callable_t>
-    requires delegates::lifetime_bound_bindable<callable_t, arg_ts...>
+    requires delegates::lifetime_bound_rbindable<return_t, callable_t, arg_ts...>
 rdelegate<return_t, arg_ts...>::rdelegate(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback)
 {
     bind(owner, std::forward<decltype(callback)>(callback));
@@ -69,7 +69,7 @@ rdelegate<return_t, arg_ts...>::rdelegate(std::weak_ptr<lifetime_owner_t> owner,
 
 template <typename return_t, typename... arg_ts>
 template <typename callable_t>
-    requires delegates::bindable<callable_t, arg_ts...>
+    requires delegates::rbindable<return_t, callable_t, arg_ts...>
 auto rdelegate<return_t, arg_ts...>::bind(callable_t&& callback) -> void
 {
     _callback = [callback = std::forward<decltype(callback)>(callback)] (arg_ts... args)
@@ -80,7 +80,7 @@ auto rdelegate<return_t, arg_ts...>::bind(callable_t&& callback) -> void
 
 template <typename return_t, typename... arg_ts>
 template <typename lifetime_owner_t, typename callable_t>
-    requires delegates::lifetime_bound_bindable<callable_t, arg_ts...>
+    requires delegates::lifetime_bound_rbindable<return_t, callable_t, arg_ts...>
 auto rdelegate<return_t, arg_ts...>::bind(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback) -> void
 {
     _callback = [owner, callback = std::forward<decltype(callback)>(callback)] (arg_ts&&... args) -> std::optional<return_t>
