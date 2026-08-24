@@ -9,7 +9,6 @@
 namespace he
 {
 
-// small helper to kick-off action_base chain by calling setup() on root
 class run final
 {
 public:

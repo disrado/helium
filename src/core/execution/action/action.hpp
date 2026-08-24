@@ -79,7 +79,7 @@ template <typename callable_t>
     requires std::is_invocable_r_v<bool, callable_t, const basic_action::context&>
 basic_action::basic_action(callable_t definition, std::optional<context> initial_context)
     : _context{ std::move(initial_context) }
-, _definition{ std::move(definition) }
+    , _definition{ std::move(definition) }
 {
 }
 
