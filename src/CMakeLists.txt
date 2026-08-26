@@ -24,6 +24,8 @@ set(helium_headers
     core/execution/action/action.hpp
     core/execution/utils.hpp
     core/execution/run.hpp
+    core/execution/dispatcher.hpp
+    core/execution/scheduler.hpp
     systems/logging.hpp
     systems/system_base.hpp
     systems/root_system.hpp)
@@ -31,6 +33,8 @@ set(helium_headers
 set(helium_sources
     core/execution/action/action.cpp
     core/execution/run.cpp
+    core/execution/dispatcher.cpp
+    core/execution/scheduler.cpp
     systems/logging.cpp
     systems/system_base.cpp)
 
@@ -63,6 +67,7 @@ set(test_sources
     core/test/event_bus_test.cpp
     core/execution/test/action_test.cpp
     core/execution/test/run_test.cpp
+    core/execution/test/scheduler_test.cpp
 )
 
 add_executable(helium_test_suite ${test_sources})

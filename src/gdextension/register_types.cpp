@@ -1,12 +1,17 @@
 #include "register_types.h"
 
+#include "gdextension/core/execution/gd_dispatcher.h"
 #include "system_node.h"
+
+#include "core/execution/scheduler.hpp"
 
 #include <gdextension_interface.h>
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
+
+#include <memory>
 
 
 using namespace godot;
@@ -19,6 +24,8 @@ void initialize_helium_module(ModuleInitializationLevel p_level)
     }
 
     GDREGISTER_CLASS(he::system_node);
+
+    he::exec::scheduler::instance().set_dispatcher(std::make_unique<he::gd_dispatcher>());
 }
 
 void uninitialize_helium_module(ModuleInitializationLevel p_level)
