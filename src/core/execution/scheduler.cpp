@@ -48,12 +48,17 @@ auto scheduler::post(task new_task) -> task_id
     {
         case task::type::sync:
         {
-            queue_sync(id, std::move(new_task));
+            run_task(id, std::move(new_task));
+            break;
+        }
+        case task::type::next_frame:
+        {
+            queue_next_frame(id, std::move(new_task));
             break;
         }
         case task::type::async:
         {
-            queue_async(id, std::move(new_task));
+            dispatch_async(id, std::move(new_task));
             break;
         }
     }
@@ -81,9 +86,9 @@ auto scheduler::process() -> void
     while (true)
     {
         const auto async_processed{ process_async() };
-        const auto sync_processed{ process_sync() };
+        const auto next_frame_processed{ process_next_frame() };
 
-        if (!async_processed && !sync_processed)
+        if (!async_processed && !next_frame_processed)
         {
             break;
         }
@@ -97,41 +102,39 @@ auto scheduler::next_task_id() -> task_id
 }
 
 
-auto scheduler::queue_sync(task_id id, task new_task) -> void
+auto scheduler::dispatch_async(task_id id, task new_task) -> void
 {
-    const auto _{ std::lock_guard{ _mutex } };
+    auto token{ std::stop_token{} };
 
-    _queue.push(queued_task{ .id = id, .target = std::move(new_task) });
-}
+    {
+        const auto _{ std::lock_guard{ _mutex } };
 
-
-auto scheduler::queue_async(task_id id, task new_task) -> void
-{
-    const auto _{ std::lock_guard{ _mutex } };
-
-    auto token{ token_for(id) };
+        token = token_for(id);
+    }
 
     _outstanding_async.fetch_add(1, std::memory_order_relaxed);
 
     _dispatcher->dispatch(
         [this, id, target = std::move(new_task), token]() mutable
         {
-            if (!token.stop_requested())
-            {
-                target.definition(token);
-            }
+            const auto status{ invoke_definition(token, target.definition) };
 
             {
                 const auto _{ std::lock_guard{ _completed_mutex } };
 
-                _completed.push(completed_task{ .id = id, .on_complete = std::move(target.on_complete) });
+                _completed.push(completed_task{ .id = id, .status = status, .on_complete = std::move(target.on_complete) });
             }
 
-            if (_outstanding_async.fetch_sub(1, std::memory_order_acq_rel) == 1)
-            {
-                _outstanding_cv.notify_all();
-            }
+            signal_async_complete();
         });
+}
+
+
+auto scheduler::queue_next_frame(task_id id, task new_task) -> void
+{
+    const auto _{ std::lock_guard{ _mutex } };
+
+    _queue.push(queued_task{ .id = id, .target = std::move(new_task) });
 }
 
 
@@ -146,7 +149,7 @@ auto scheduler::process_async() -> bool
         auto completed{ std::move(_completed.front()) };
         _completed.pop();
 
-        run(completed.id, completed.on_complete);
+        process_task_completion(completed.id, completed.status, completed.on_complete);
 
         processed = true;
     }
@@ -155,14 +158,13 @@ auto scheduler::process_async() -> bool
 }
 
 
-auto scheduler::process_sync() -> bool
+auto scheduler::process_next_frame() -> bool
 {
     auto processed{ false };
 
     while (true)
     {
         auto queued{ queued_task{} };
-        auto token{ std::stop_token{} };
 
         {
             const auto _{ std::lock_guard{ _mutex } };
@@ -174,16 +176,9 @@ auto scheduler::process_sync() -> bool
 
             queued = std::move(_queue.front());
             _queue.pop();
-
-            token = token_for(queued.id);
         }
 
-        if (!token.stop_requested())
-        {
-            queued.target.definition(token);
-        }
-
-        run(queued.id, queued.target.on_complete);
+        run_task(queued.id, std::move(queued.target));
 
         processed = true;
     }
@@ -203,23 +198,58 @@ auto scheduler::token_for(task_id id) -> std::stop_token
 }
 
 
-auto scheduler::run(task_id id, const std::function<void()>& action) -> void
+auto scheduler::run_task(task_id id, task target) -> void
 {
-    auto cancelled{ false };
+    auto token{ std::stop_token{} };
 
+    {
+        const auto _{ std::lock_guard{ _mutex } };
+
+        token = token_for(id);
+    }
+
+    const auto status{ invoke_definition(token, target.definition) };
+
+    process_task_completion(id, status, target.on_complete);
+}
+
+
+auto scheduler::invoke_definition(const std::stop_token& token, const task_definition& definition) -> task::status
+{
+    if (token.stop_requested())
+    {
+        return task::status::cancelled;
+    }
+
+    return definition(token);
+}
+
+
+auto scheduler::process_task_completion(task_id id, task::status status, const std::function<void(task::status)>& on_complete) -> void
+{
     {
         const auto _{ std::lock_guard{ _mutex } };
 
         if (const auto found{ _stop_sources.find(id) }; found != _stop_sources.end())
         {
-            cancelled = found->second.stop_requested();
+            if (found->second.stop_requested())
+            {
+                status = task::status::cancelled;
+            }
+
             _stop_sources.erase(found);
         }
     }
 
-    if (!cancelled)
+    on_complete(status);
+}
+
+
+auto scheduler::signal_async_complete() -> void
+{
+    if (_outstanding_async.fetch_sub(1, std::memory_order_acq_rel) == 1)
     {
-        action();
+        _outstanding_cv.notify_all();
     }
 }
 
