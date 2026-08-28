@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 find_package(magic_enum CONFIG REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
+find_package(concurrentqueue CONFIG REQUIRED)
 
 set(helium_headers
     core/core_macro.hpp
@@ -24,6 +25,7 @@ set(helium_headers
     core/execution/action/action.hpp
     core/execution/utils.hpp
     core/execution/run.hpp
+    core/execution/defs.hpp
     core/execution/dispatcher.hpp
     core/execution/scheduler.hpp
     systems/logging.hpp
@@ -40,7 +42,7 @@ set(helium_sources
 
 add_library(helium STATIC ${helium_sources})
 
-target_link_libraries(helium PUBLIC magic_enum::magic_enum)
+target_link_libraries(helium PUBLIC magic_enum::magic_enum concurrentqueue::concurrentqueue)
 
 target_include_directories(helium PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

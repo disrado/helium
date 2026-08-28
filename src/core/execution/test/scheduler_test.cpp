@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <atomic>
+#include <optional>
 #include <thread>
 
 
@@ -35,10 +36,10 @@ TEST_CASE("scheduler sync task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::sync,
-                .definition = [&definition_ran](std::stop_token) { definition_ran = true; return he::exec::task::status::completed; },
-                .on_complete = [&on_complete_ran](he::exec::task::status) { on_complete_ran = true; }
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::sync,
+                .definition = [&definition_ran](std::stop_token) { definition_ran = true; },
+                .on_complete = [&on_complete_ran](he::exec::execution_status) { on_complete_ran = true; }
             });
 
         REQUIRE(definition_ran);
@@ -52,10 +53,10 @@ TEST_CASE("scheduler sync task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::sync,
-                .definition = [&order](std::stop_token) { order += "a"; return he::exec::task::status::completed; },
-                .on_complete = [&order](he::exec::task::status) { order += "b"; }
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::sync,
+                .definition = [&order](std::stop_token) { order += "a"; },
+                .on_complete = [&order](he::exec::execution_status) { order += "b"; }
             });
 
         REQUIRE(order == "ab");
@@ -67,10 +68,10 @@ TEST_CASE("scheduler sync task")
 
         const auto id{
             instance.post(
-                he::exec::task{
-                    .mode = he::exec::task::type::sync,
-                    .definition = [](std::stop_token) { return he::exec::task::status::completed; },
-                    .on_complete = [](he::exec::task::status) {}
+                he::exec::task_request{
+                    .mode = he::exec::launch_policy::sync,
+                    .definition = [](std::stop_token) {},
+                    .on_complete = [](he::exec::execution_status) {}
                 })
         };
 
@@ -88,10 +89,10 @@ TEST_CASE("scheduler next_frame task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::next_frame,
-                .definition = [&ran](std::stop_token) { ran = true; return he::exec::task::status::completed; },
-                .on_complete = [](he::exec::task::status) {}
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::next_frame,
+                .definition = [&ran](std::stop_token) { ran = true; },
+                .on_complete = [](he::exec::execution_status) {}
             });
 
         REQUIRE_FALSE(ran);
@@ -105,10 +106,10 @@ TEST_CASE("scheduler next_frame task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::next_frame,
-                .definition = [&definition_ran](std::stop_token) { definition_ran = true; return he::exec::task::status::completed; },
-                .on_complete = [&on_complete_ran](he::exec::task::status) { on_complete_ran = true; }
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::next_frame,
+                .definition = [&definition_ran](std::stop_token) { definition_ran = true; },
+                .on_complete = [&on_complete_ran](he::exec::execution_status) { on_complete_ran = true; }
             });
 
         instance.process();
@@ -124,10 +125,10 @@ TEST_CASE("scheduler next_frame task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::next_frame,
-                .definition = [&order](std::stop_token) { order += "a"; return he::exec::task::status::completed; },
-                .on_complete = [&order](he::exec::task::status) { order += "b"; }
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::next_frame,
+                .definition = [&order](std::stop_token) { order += "a"; },
+                .on_complete = [&order](he::exec::execution_status) { order += "b"; }
             });
 
         instance.process();
@@ -142,16 +143,16 @@ TEST_CASE("scheduler next_frame task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::next_frame,
-                .definition = [&order](std::stop_token) { order += "1"; return he::exec::task::status::completed; },
-                .on_complete = [](he::exec::task::status) {}
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::next_frame,
+                .definition = [&order](std::stop_token) { order += "1"; },
+                .on_complete = [](he::exec::execution_status) {}
             });
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::next_frame,
-                .definition = [&order](std::stop_token) { order += "2"; return he::exec::task::status::completed; },
-                .on_complete = [](he::exec::task::status) {}
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::next_frame,
+                .definition = [&order](std::stop_token) { order += "2"; },
+                .on_complete = [](he::exec::execution_status) {}
             });
 
         instance.process();
@@ -166,21 +167,20 @@ TEST_CASE("scheduler next_frame task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::next_frame,
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::next_frame,
                 .definition =
                     [&order, &instance](std::stop_token)
                 {
                     order += "a";
                     instance.post(
-                        he::exec::task{
-                            .mode = he::exec::task::type::next_frame,
-                            .definition = [&order](std::stop_token) { order += "b"; return he::exec::task::status::completed; },
-                            .on_complete = [](he::exec::task::status) {}
+                        he::exec::task_request{
+                            .mode = he::exec::launch_policy::next_frame,
+                            .definition = [&order](std::stop_token) { order += "b"; },
+                            .on_complete = [](he::exec::execution_status) {}
                         });
-                    return he::exec::task::status::completed;
                 },
-                .on_complete = [](he::exec::task::status) {}
+                .on_complete = [](he::exec::execution_status) {}
             });
 
         instance.process();
@@ -200,10 +200,10 @@ TEST_CASE("scheduler async task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::async,
-                .definition = [&work_done](std::stop_token) { work_done = true; return he::exec::task::status::completed; },
-                .on_complete = [&on_complete_ran](he::exec::task::status) { on_complete_ran = true; }
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::async,
+                .definition = [&work_done](std::stop_token) { work_done = true; },
+                .on_complete = [&on_complete_ran](he::exec::execution_status) { on_complete_ran = true; }
             });
 
         while (!work_done) {}
@@ -218,10 +218,10 @@ TEST_CASE("scheduler async task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::async,
-                .definition = [](std::stop_token) { return he::exec::task::status::completed; },
-                .on_complete = [&on_complete_ran](he::exec::task::status) { on_complete_ran = true; }
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::async,
+                .definition = [](std::stop_token) {},
+                .on_complete = [&on_complete_ran](he::exec::execution_status) { on_complete_ran = true; }
             });
 
         while (!on_complete_ran)
@@ -240,16 +240,15 @@ TEST_CASE("scheduler async task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::async,
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::async,
                 .definition =
                     [&worker_thread_id, &work_done](std::stop_token)
                 {
                     worker_thread_id = std::this_thread::get_id();
                     work_done = true;
-                    return he::exec::task::status::completed;
                 },
-                .on_complete = [](he::exec::task::status) {}
+                .on_complete = [](he::exec::execution_status) {}
             });
 
         while (!work_done) {}
@@ -266,11 +265,11 @@ TEST_CASE("scheduler async task")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::async,
-                .definition = [](std::stop_token) { return he::exec::task::status::completed; },
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::async,
+                .definition = [](std::stop_token) {},
                 .on_complete =
-                    [&on_complete_ran, &on_complete_thread_id](he::exec::task::status)
+                    [&on_complete_ran, &on_complete_thread_id](he::exec::execution_status)
                 {
                     on_complete_thread_id = std::this_thread::get_id();
                     on_complete_ran = true;
@@ -291,9 +290,9 @@ TEST_CASE("scheduler async task")
 
         auto instance{ he::exec::scheduler{} };
 
-        instance.post(he::exec::task{ .mode = he::exec::task::type::async, .definition = [](std::stop_token) { return he::exec::task::status::completed; }, .on_complete = [&completed_count](he::exec::task::status) { completed_count++; } });
-        instance.post(he::exec::task{ .mode = he::exec::task::type::async, .definition = [](std::stop_token) { return he::exec::task::status::completed; }, .on_complete = [&completed_count](he::exec::task::status) { completed_count++; } });
-        instance.post(he::exec::task{ .mode = he::exec::task::type::async, .definition = [](std::stop_token) { return he::exec::task::status::completed; }, .on_complete = [&completed_count](he::exec::task::status) { completed_count++; } });
+        instance.post(he::exec::task_request{ .mode = he::exec::launch_policy::async, .definition = [](std::stop_token) {}, .on_complete = [&completed_count](he::exec::execution_status) { completed_count++; } });
+        instance.post(he::exec::task_request{ .mode = he::exec::launch_policy::async, .definition = [](std::stop_token) {}, .on_complete = [&completed_count](he::exec::execution_status) { completed_count++; } });
+        instance.post(he::exec::task_request{ .mode = he::exec::launch_policy::async, .definition = [](std::stop_token) {}, .on_complete = [&completed_count](he::exec::execution_status) { completed_count++; } });
 
         while (completed_count != 3)
         {
@@ -319,10 +318,10 @@ TEST_CASE("scheduler set_dispatcher")
         auto on_complete_ran{ false };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::async,
-                .definition = [](std::stop_token) { return he::exec::task::status::completed; },
-                .on_complete = [&on_complete_ran](he::exec::task::status) { on_complete_ran = true; }
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::async,
+                .definition = [](std::stop_token) {},
+                .on_complete = [&on_complete_ran](he::exec::execution_status) { on_complete_ran = true; }
             });
 
         while (!on_complete_ran)
@@ -352,16 +351,16 @@ TEST_CASE("scheduler process")
         auto instance{ he::exec::scheduler{} };
 
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::async,
-                .definition = [](std::stop_token) { return he::exec::task::status::completed; },
-                .on_complete = [&async_completed](he::exec::task::status) { async_completed = true; }
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::async,
+                .definition = [](std::stop_token) {},
+                .on_complete = [&async_completed](he::exec::execution_status) { async_completed = true; }
             });
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::next_frame,
-                .definition = [&next_frame_ran](std::stop_token) { next_frame_ran = true; return he::exec::task::status::completed; },
-                .on_complete = [](he::exec::task::status) {}
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::next_frame,
+                .definition = [&next_frame_ran](std::stop_token) { next_frame_ran = true; },
+                .on_complete = [](he::exec::execution_status) {}
             });
 
         while (!async_completed)
@@ -382,7 +381,7 @@ TEST_CASE("scheduler cancel")
         auto instance{ he::exec::scheduler{} };
 
         REQUIRE_FALSE(instance.cancel(he::exec::scheduler::invalid_task_id));
-        REQUIRE_FALSE(instance.cancel(he::exec::scheduler::task_id{ 12345 }));
+        REQUIRE_FALSE(instance.cancel(he::exec::task_id{ 12345 }));
     }
 
     SECTION("true before it runs")
@@ -391,10 +390,10 @@ TEST_CASE("scheduler cancel")
 
         const auto id{
             instance.post(
-                he::exec::task{
-                    .mode = he::exec::task::type::next_frame,
-                    .definition = [](std::stop_token) { return he::exec::task::status::completed; },
-                    .on_complete = [](he::exec::task::status) {}
+                he::exec::task_request{
+                    .mode = he::exec::launch_policy::next_frame,
+                    .definition = [](std::stop_token) {},
+                    .on_complete = [](he::exec::execution_status) {}
                 })
         };
 
@@ -407,10 +406,10 @@ TEST_CASE("scheduler cancel")
 
         const auto id{
             instance.post(
-                he::exec::task{
-                    .mode = he::exec::task::type::next_frame,
-                    .definition = [](std::stop_token) { return he::exec::task::status::completed; },
-                    .on_complete = [](he::exec::task::status) {}
+                he::exec::task_request{
+                    .mode = he::exec::launch_policy::next_frame,
+                    .definition = [](std::stop_token) {},
+                    .on_complete = [](he::exec::execution_status) {}
                 })
         };
 
@@ -427,10 +426,10 @@ TEST_CASE("scheduler cancel")
 
         const auto id{
             instance.post(
-                he::exec::task{
-                    .mode = he::exec::task::type::next_frame,
-                    .definition = [&ran](std::stop_token) { ran = true; return he::exec::task::status::completed; },
-                    .on_complete = [](he::exec::task::status) {}
+                he::exec::task_request{
+                    .mode = he::exec::launch_policy::next_frame,
+                    .definition = [&ran](std::stop_token) { ran = true; },
+                    .on_complete = [](he::exec::execution_status) {}
                 })
         };
 
@@ -443,28 +442,28 @@ TEST_CASE("scheduler cancel")
     SECTION("async on_complete reports cancelled")
     {
         auto work_done{ std::atomic<bool>{ false } };
-        auto on_complete_status{ he::exec::task::status::running };
+        auto on_complete_status{ std::optional<he::exec::execution_status>{} };
 
         auto instance{ he::exec::scheduler{} };
 
         const auto id{
             instance.post(
-                he::exec::task{
-                    .mode = he::exec::task::type::async,
-                    .definition = [&work_done](std::stop_token) { work_done = true; return he::exec::task::status::completed; },
-                    .on_complete = [&on_complete_status](he::exec::task::status status) { on_complete_status = status; }
+                he::exec::task_request{
+                    .mode = he::exec::launch_policy::async,
+                    .definition = [&work_done](std::stop_token) { work_done = true; },
+                    .on_complete = [&on_complete_status](he::exec::execution_status status) { on_complete_status = status; }
                 })
         };
 
         while (!work_done) {}
         instance.cancel(id);
 
-        while (on_complete_status == he::exec::task::status::running)
+        while (!on_complete_status.has_value())
         {
             instance.process();
         }
 
-        REQUIRE(on_complete_status == he::exec::task::status::cancelled);
+        REQUIRE(on_complete_status == he::exec::execution_status::cancelled);
     }
 
     SECTION("isolated per task")
@@ -476,17 +475,17 @@ TEST_CASE("scheduler cancel")
 
         const auto first_id{
             instance.post(
-                he::exec::task{
-                    .mode = he::exec::task::type::next_frame,
-                    .definition = [&first_ran](std::stop_token) { first_ran = true; return he::exec::task::status::completed; },
-                    .on_complete = [](he::exec::task::status) {}
+                he::exec::task_request{
+                    .mode = he::exec::launch_policy::next_frame,
+                    .definition = [&first_ran](std::stop_token) { first_ran = true; },
+                    .on_complete = [](he::exec::execution_status) {}
                 })
         };
         instance.post(
-            he::exec::task{
-                .mode = he::exec::task::type::next_frame,
-                .definition = [&second_ran](std::stop_token) { second_ran = true; return he::exec::task::status::completed; },
-                .on_complete = [](he::exec::task::status) {}
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::next_frame,
+                .definition = [&second_ran](std::stop_token) { second_ran = true; },
+                .on_complete = [](he::exec::execution_status) {}
             });
 
         instance.cancel(first_id);
@@ -500,14 +499,14 @@ TEST_CASE("scheduler cancel")
     {
         auto started{ std::atomic<bool>{ false } };
         auto observed_cancel{ std::atomic<bool>{ false } };
-        auto on_complete_status{ he::exec::task::status::running };
+        auto on_complete_status{ std::optional<he::exec::execution_status>{} };
 
         auto instance{ he::exec::scheduler{} };
 
         const auto id{
             instance.post(
-                he::exec::task{
-                    .mode = he::exec::task::type::async,
+                he::exec::task_request{
+                    .mode = he::exec::launch_policy::async,
                     .definition =
                         [&started, &observed_cancel](std::stop_token token)
                     {
@@ -516,9 +515,8 @@ TEST_CASE("scheduler cancel")
                         while (!token.stop_requested()) {}
 
                         observed_cancel = true;
-                        return he::exec::task::status::cancelled;
                     },
-                    .on_complete = [&on_complete_status](he::exec::task::status status) { on_complete_status = status; }
+                    .on_complete = [&on_complete_status](he::exec::execution_status status) { on_complete_status = status; }
                 })
         };
 
@@ -527,12 +525,12 @@ TEST_CASE("scheduler cancel")
 
         while (!observed_cancel) {}
 
-        while (on_complete_status == he::exec::task::status::running)
+        while (!on_complete_status.has_value())
         {
             instance.process();
         }
 
         REQUIRE(observed_cancel);
-        REQUIRE(on_complete_status == he::exec::task::status::cancelled);
+        REQUIRE(on_complete_status == he::exec::execution_status::cancelled);
     }
 }
