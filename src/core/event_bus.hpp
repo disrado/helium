@@ -43,7 +43,7 @@ public:
     auto on(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback) -> handle;
 
     template <typename event_t>
-    auto on(delegate<event_t> delegate) -> handle;
+    auto on(delegate<void(event_t)> delegate) -> handle;
 
     template <typename event_t>
     auto unbind(const handle& target_handle) -> bool;
@@ -65,7 +65,7 @@ auto event_bus::on(callable_t&& callback) -> handle
 {
     using raw_event_t = std::remove_cvref_t<event_t>;
 
-    return on<raw_event_t>(delegate<raw_event_t>{ std::forward<callable_t>(callback) });
+    return on<raw_event_t>(delegate<void(raw_event_t)>{ std::forward<callable_t>(callback) });
 }
 
 template <typename event_t, typename lifetime_owner_t, typename callable_t>
@@ -74,11 +74,11 @@ auto event_bus::on(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback)
 {
     using raw_event_t = std::remove_cvref_t<event_t>;
 
-    return on<raw_event_t>(delegate<raw_event_t>{ owner, std::forward<callable_t>(callback) });
+    return on<raw_event_t>(delegate<void(raw_event_t)>{ owner, std::forward<callable_t>(callback) });
 }
 
 template <typename event_t>
-auto event_bus::on(delegate<event_t> delegate) -> handle
+auto event_bus::on(delegate<void(event_t)> delegate) -> handle
 {
     using raw_event_t = std::remove_cvref_t<event_t>;
 

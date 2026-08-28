@@ -4,7 +4,7 @@
 namespace he::exec
 {
 
-basic_action::basic_action(rdelegate<bool, const context&> definition, std::optional<context> initial_context)
+basic_action::basic_action(delegate<bool(const context&)> definition, std::optional<context> initial_context)
     : _context{ std::move(initial_context) }
     , _definition{ std::move(definition) }
 {

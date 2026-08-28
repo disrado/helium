@@ -1,7 +1,7 @@
 #pragma once
 
+#include "core/delegate/delegate.hpp"
 #include "core/delegate/multicast_delegate.hpp"
-#include "core/delegate/rdelegate.hpp"
 #include "core/execution/utils.hpp"
 
 #include <any>
@@ -29,7 +29,7 @@ public:
 public:
     basic_action() = default;
 
-    explicit basic_action(rdelegate<bool, const context&> definition, std::optional<context> initial_context = std::nullopt);
+    explicit basic_action(delegate<bool(const context&)> definition, std::optional<context> initial_context = std::nullopt);
 
     template <typename callable_t>
         requires std::is_invocable_r_v<bool, callable_t, const context&>
@@ -71,7 +71,7 @@ protected:
     std::map<state, multicast_delegate<>> _ons;
 
 private:
-    rdelegate<bool, const context&> _definition;
+    delegate<bool(const context&)> _definition;
 };
 
 

@@ -1,4 +1,4 @@
-﻿#include "core/delegate/multicast_delegate.hpp"
+#include "core/delegate/multicast_delegate.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -67,7 +67,7 @@ TEST_CASE("multicast_delegate")
     {
         auto delegate{ he::multicast_delegate<double, std::string&&>{} };
 
-        delegate.bind(he::delegate<double, std::string&&>{ [] (double, std::string&&) {} });
+        delegate.bind(he::delegate<void(double, std::string&&)>{ [] (double, std::string&&) {} });
 
         REQUIRE(delegate.is_bound());
     }

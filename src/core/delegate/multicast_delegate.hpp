@@ -1,9 +1,10 @@
-﻿#pragma once
+#pragma once
 
 #include "core/delegate/delegate.hpp"
 
 #include <algorithm>
 #include <cstdint>
+#include <tuple>
 
 
 namespace he
@@ -25,7 +26,7 @@ private:
     struct bound_entry final
     {
         handle _handle;
-        delegate<arg_ts...> _delegate;
+        delegate<void(arg_ts...)> _delegate;
     };
 
 public:
@@ -37,7 +38,7 @@ public:
         requires delegates::lifetime_bound_bindable<callable_t, arg_ts...>
     auto bind(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback) -> handle;
 
-    auto bind(he::delegate<arg_ts...> delegate) -> handle;
+    auto bind(he::delegate<void(arg_ts...)> delegate) -> handle;
 
     auto unbind(const handle& target_handle) -> bool;
 
@@ -64,7 +65,7 @@ template <typename callable_t>
     requires delegates::bindable<callable_t, arg_ts...>
 auto multicast_delegate<arg_ts...>::bind(callable_t&& callback) -> handle
 {
-    return bind(delegate<arg_ts...>{ std::forward<callable_t>(callback) });
+    return bind(delegate<void(arg_ts...)>{ std::forward<callable_t>(callback) });
 }
 
 template <typename... arg_ts>
@@ -72,11 +73,11 @@ template <typename lifetime_owner_t, typename callable_t>
     requires delegates::lifetime_bound_bindable<callable_t, arg_ts...>
 auto multicast_delegate<arg_ts...>::bind(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback) -> handle
 {
-    return bind(delegate<arg_ts...>{ owner, std::forward<callable_t>(callback) });
+    return bind(delegate<void(arg_ts...)>{ owner, std::forward<callable_t>(callback) });
 }
 
 template <typename... arg_ts>
-auto multicast_delegate<arg_ts...>::bind(he::delegate<arg_ts...> delegate) -> handle
+auto multicast_delegate<arg_ts...>::bind(he::delegate<void(arg_ts...)> delegate) -> handle
 {
     const auto& [new_handle, bound_delegate]{
         _bound_list.emplace_back(
@@ -114,7 +115,7 @@ auto multicast_delegate<arg_ts...>::execute(ts&&... args) const -> bool
 {
     for (const auto& entry: _bound_list)
     {
-        entry._delegate.execute(args...);
+        std::ignore = entry._delegate.try_execute(args...);
     }
 
     return !_bound_list.empty();

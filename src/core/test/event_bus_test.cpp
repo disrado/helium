@@ -1,4 +1,4 @@
-﻿#include "core/event_bus.hpp"
+#include "core/event_bus.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -63,7 +63,7 @@ TEST_CASE("event_bus")
 
     SECTION("binding _delegate")
     {
-        he::event_bus{}.on<bool>(he::delegate<bool>{ [] (bool) {} });
+        he::event_bus{}.on<bool>(he::delegate<void(bool)>{ [] (bool) {} });
     }
 
     SECTION("binding and emitting")

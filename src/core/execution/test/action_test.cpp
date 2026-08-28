@@ -30,18 +30,18 @@ TEST_CASE("basic_action construction")
         REQUIRE(instance.get_state() == he::action::state::dormant);
     }
 
-    SECTION("from rdelegate")
+    SECTION("from delegate")
     {
-        auto delegate{ he::rdelegate<bool, const he::action::context&>{ &succeeding_callback } };
+        auto delegate{ he::delegate<bool(const he::action::context&)>{ &succeeding_callback } };
 
         const auto instance{ he::action{ std::move(delegate) } };
 
         REQUIRE(instance.get_state() == he::action::state::dormant);
     }
 
-    SECTION("from rdelegate with initial context")
+    SECTION("from delegate with initial context")
     {
-        auto delegate{ he::rdelegate<bool, const he::action::context&>{ &succeeding_callback } };
+        auto delegate{ he::delegate<bool(const he::action::context&)>{ &succeeding_callback } };
 
         auto context{ he::action::context{ { "flag", true } } };
 
@@ -233,7 +233,7 @@ TEST_CASE("basic_action on/set_state")
 
         auto instance{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        instance.on(he::action::state::succeeded, he::delegate<>{ [&fired] { fired = true; } });
+        instance.on(he::action::state::succeeded, he::delegate{ [&fired] { fired = true; } });
 
         instance.execute();
 
