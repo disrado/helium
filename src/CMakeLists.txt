@@ -24,6 +24,7 @@ set(helium_headers
     core/execution/action/action_base.hpp
     core/execution/action/action.hpp
     core/execution/action/async_action.hpp
+    core/execution/action/sequential_composite.hpp
     core/execution/run.hpp
     core/execution/defs.hpp
     core/execution/dispatcher.hpp
@@ -38,6 +39,7 @@ set(helium_sources
     core/execution/action/action_base.cpp
     core/execution/action/action.cpp
     core/execution/action/async_action.cpp
+    core/execution/action/sequential_composite.cpp
     core/execution/run.cpp
     core/execution/thread_dispatcher.cpp
     core/execution/scheduler.cpp
@@ -78,6 +80,7 @@ set(test_sources
     core/execution/action/test/action_base_test.cpp
     core/execution/action/test/action_test.cpp
     core/execution/action/test/async_action_test.cpp
+    core/execution/action/test/sequential_composite_test.cpp
 )
 
 add_executable(helium_test_suite ${test_sources})
