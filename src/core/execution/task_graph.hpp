@@ -11,7 +11,7 @@
 namespace he::exec
 {
 
-class task_graph final
+class task_graph final: public std::enable_shared_from_this<task_graph>
 {
 public:
     class node final

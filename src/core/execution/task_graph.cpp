@@ -88,11 +88,11 @@ auto task_graph::advance() -> void
                 .mode{ current->mode },
                 .definition{ current->definition },
                 .on_complete{
-                    [this, current] (execution_status)
+                    [self{ shared_from_this() }, current] (execution_status)
                     {
                         std::ignore = current->post_condition.execute();
 
-                        advance();
+                        self->advance();
                     } }
             });
     }

@@ -8,9 +8,9 @@ namespace he
 
 auto run::execute() const -> void
 {
-    auto graph{ exec::task_graph{} };
+    auto graph{ std::make_shared<exec::task_graph>() };
 
-    graph.activate(_target->build_graph(graph.root()));
+    graph->activate(_target->build_graph(graph->root()));
 }
 
 auto run::abort() const -> void
