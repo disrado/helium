@@ -59,9 +59,15 @@ auto basic_action::fail() -> void
 }
 
 
-auto basic_action::propagate_context_to(basic_action& target) -> void
+auto basic_action::get_context() const -> const std::optional<context>&
 {
-    target._context = std::move(_context);
+    return _context;
+}
+
+
+auto basic_action::set_context(std::optional<context> new_context) -> void
+{
+    _context = std::move(new_context);
 }
 
 

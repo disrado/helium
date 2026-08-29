@@ -46,6 +46,8 @@ public:
     virtual auto build_graph(task_graph::node& parent) -> task_graph::node& = 0;
 
     auto get_state() const -> state;
+    auto get_context() const -> const std::optional<context>&;
+    auto set_context(std::optional<context> new_context) -> void;
 
     template <typename t>
     auto on(state target_state, t&& delegate) -> basic_action&;
@@ -58,8 +60,6 @@ protected:
 
     auto store_and_then(std::unique_ptr<basic_action> next_action) -> void;
     auto store_or_else(std::unique_ptr<basic_action> next_action) -> void;
-
-    auto propagate_context_to(basic_action& target) -> void;
 
 protected:
     state _state{ state::dormant };

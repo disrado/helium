@@ -10,32 +10,22 @@ auto action::build_graph(exec::task_graph::node& parent) -> exec::task_graph::no
 
     self_node.definition = exec::task_definition{ [this] (std::stop_token) { execute(); } };
 
-    exec::task_graph::node* then_child{ nullptr };
-    exec::task_graph::node* else_child{ nullptr };
-
-    if (_then_action)
-    {
-        then_child = &_then_action->build_graph(self_node);
-    }
-
-    if (_else_action)
-    {
-        else_child = &_else_action->build_graph(self_node);
-    }
-
     self_node.post_condition.bind(
-        [this, then_child, else_child]
+        [
+            this,
+            then_child{ _then_action ? &_then_action->build_graph(self_node) : nullptr },
+            else_child{ _else_action ? &_else_action->build_graph(self_node) : nullptr }
+        ]
         {
-            if (_state == state::succeeded && then_child)
+            if (get_state() == state::succeeded && then_child)
             {
-                propagate_context_to(*_then_action);
+                _then_action->set_context(std::move(_context));
 
                 then_child->activate();
             }
-
-            if (_state == state::failed && else_child)
+            else if (get_state() == state::failed && else_child)
             {
-                propagate_context_to(*_else_action);
+                _else_action->set_context(std::move(_context));
 
                 else_child->activate();
             }
