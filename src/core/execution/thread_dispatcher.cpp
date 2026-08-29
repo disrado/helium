@@ -1,14 +1,18 @@
 #include "thread_dispatcher.hpp"
 
-#include <thread>
-
 
 namespace he::exec
 {
 
+thread_dispatcher::thread_dispatcher()
+    : _pool{ worker_count }
+{
+}
+
+
 auto thread_dispatcher::dispatch(std::function<void()> work) -> void
 {
-    std::thread{ std::move(work) }.detach();
+    _pool.submit(std::move(work));
 }
 
 }
