@@ -85,7 +85,7 @@ auto event_bus::on(delegate<void(event_t)> delegate) -> handle
     if (const auto event_id{ type_index<raw_event_t>() }; _events.contains(type_index<raw_event_t>()))
     {
         return handle{
-            .id = access_slot<raw_event_t>().delegate.bind(std::move(delegate)).id
+            .id{ access_slot<raw_event_t>().delegate.bind(std::move(delegate)).id }
         };
     }
     else
@@ -93,7 +93,7 @@ auto event_bus::on(delegate<void(event_t)> delegate) -> handle
         auto slot{ std::make_shared<event_slot<raw_event_t>>() };
 
         const auto return_handle{ handle{
-            .id = slot->delegate.bind(std::move(delegate)).id
+            .id{ slot->delegate.bind(std::move(delegate)).id }
         } };
 
         _events.emplace(event_id, std::move(slot));
@@ -111,7 +111,7 @@ auto event_bus::unbind(const handle& target_handle) -> bool
     {
         const auto unbound{ access_slot<raw_event_t>().delegate.unbind(
             typename multicast_delegate<raw_event_t>::handle{
-                .id = target_handle.id
+                .id{ target_handle.id }
             }) };
 
         if (!access_slot<raw_event_t>().delegate.is_bound())

@@ -82,10 +82,10 @@ auto multicast_delegate<arg_ts...>::bind(he::delegate<void(arg_ts...)> delegate)
     const auto& [new_handle, bound_delegate]{
         _bound_list.emplace_back(
             bound_entry{
-                ._handle = {
-                    .id = generate_handle_id()
+                ._handle{
+                    .id{ generate_handle_id() }
                 },
-                ._delegate = std::move(delegate)
+                ._delegate{ std::move(delegate) }
             })
     };
 

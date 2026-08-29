@@ -41,10 +41,10 @@ auto scheduler::post(task_request request) -> task_id
 
     auto new_task{
         task{
-            .mode = request.mode,
-            .definition = std::move(request.definition),
-            .on_complete = std::move(request.on_complete),
-            .id = id
+            .mode{ request.mode },
+            .definition{ std::move(request.definition) },
+            .on_complete{ std::move(request.on_complete) },
+            .id{ id }
         }
     };
 

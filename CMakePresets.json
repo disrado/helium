@@ -1,4 +1,4 @@
-﻿{
+{
   "version": 10,
   "cmakeMinimumRequired": {
     "major": 4,
@@ -28,10 +28,13 @@
       "displayName": "windows debug",
       "inherits": "win",
       "binaryDir": "${sourceDir}/build/win-debug",
-      "$comment": "-Wno-c2y-extensions: silences Catch2's __COUNTER__ use in TEST_CASE, flagged by -Wpedantic",
+      "$comment": [
+        "-Wno-c2y-extensions: silences Catch2's __COUNTER__ use in TEST_CASE, flagged by -Wpedantic",
+        "-Wno-braced-scalar-init: false positive on designated-init direct-list-init of scalar members (.foo{ bar })"
+      ],
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -Wpedantic -Wno-c2y-extensions -Wnrvo -g3 -O0"
+        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -Wpedantic -Wno-c2y-extensions -Wno-braced-scalar-init -Wnrvo -g3 -O0"
       }
     },
     {
@@ -39,10 +42,13 @@
       "displayName": "windows release",
       "inherits": "win",
       "binaryDir": "${sourceDir}/build/win-release",
-      "$comment": "-Wno-c2y-extensions: silences Catch2's __COUNTER__ use in TEST_CASE, flagged by -Wpedantic",
+      "$comment": [
+        "-Wno-c2y-extensions: silences Catch2's __COUNTER__ use in TEST_CASE, flagged by -Wpedantic",
+        "-Wno-braced-scalar-init: false positive on designated-init direct-list-init of scalar members (.foo{ bar })"
+      ],
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -Wpedantic -Wno-c2y-extensions -Wnrvo -O2"
+        "CMAKE_CXX_FLAGS": "-std=c++2c -Wall -Wextra -Wshadow -Wpedantic -Wno-c2y-extensions -Wno-braced-scalar-init -Wnrvo -O2"
       }
     },
     {

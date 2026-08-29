@@ -138,9 +138,9 @@ template <typename k, typename v>
 ordered_tree<k, v>::ordered_tree(key_type root_key, value_type root_value)
     : _root{ std::make_unique<node>(
         node{
-            .parent = nullptr,
-            .children = {},
-            .value = std::pair{ std::move(root_key), std::move(root_value) }
+            .parent{ nullptr },
+            .children{},
+            .value{ std::pair{ std::move(root_key), std::move(root_value) } }
         }) }
     , _size{ 1 }
 {
@@ -184,9 +184,9 @@ auto ordered_tree<k, v>::emplace(const key_type& parent_key, const key_type& key
     parent->children.emplace_back(
         std::make_unique<node>(
             node{
-                .parent = parent,
-                .children = {},
-                .value = std::pair{ key, value_type{ std::forward<decltype(args)>(args)... } }
+                .parent{ parent },
+                .children{},
+                .value{ std::pair{ key, value_type{ std::forward<decltype(args)>(args)... } } }
             }
         ));
 
@@ -443,9 +443,9 @@ auto ordered_tree<k, v>::copy_tree(const node& from, node* parent) -> std::uniqu
 {
     auto copy{ std::make_unique<node>(
         node{
-            .parent = parent,
-            .children = {},
-            .value = from.value
+            .parent{ parent },
+            .children{},
+            .value{ from.value }
         }) };
 
     for (const auto& child: from.children)
