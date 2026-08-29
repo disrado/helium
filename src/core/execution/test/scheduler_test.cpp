@@ -77,6 +77,22 @@ TEST_CASE("scheduler sync task")
 
         REQUIRE_FALSE(instance.cancel(id));
     }
+
+    SECTION("faulted for unbound definition")
+    {
+        auto status{ std::optional<he::exec::execution_status>{} };
+
+        auto instance{ he::exec::scheduler{} };
+
+        instance.post(
+            he::exec::task_request{
+                .mode = he::exec::launch_policy::sync,
+                .definition{},
+                .on_complete{ [&status](he::exec::execution_status s) { status = s; } }
+            });
+
+        REQUIRE(status == he::exec::execution_status::faulted);
+    }
 }
 
 
