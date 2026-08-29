@@ -4,6 +4,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <memory>
+#include <stop_token>
+#include <tuple>
 
 
 TEST_CASE("action")
@@ -19,7 +21,7 @@ TEST_CASE("action")
         REQUIRE(graph->root().children().front().get() == &node);
     }
 
-    SECTION("runs when activated")
+    SECTION("wires its own execute() as the definition")
     {
         auto ran{ false };
 
@@ -32,7 +34,9 @@ TEST_CASE("action")
         };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(instance.build_graph(graph->root()));
+        auto& node{ instance.build_graph(graph->root()) };
+
+        std::ignore = node.definition.try_execute(std::stop_token{});
 
         REQUIRE(ran);
         REQUIRE(instance.get_state() == he::action::state::succeeded);
@@ -43,7 +47,9 @@ TEST_CASE("action")
         auto instance{ he::action{ [] (const he::action::context&) { return false; } } };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(instance.build_graph(graph->root()));
+        auto& node{ instance.build_graph(graph->root()) };
+
+        std::ignore = node.definition.try_execute(std::stop_token{});
 
         REQUIRE(instance.get_state() == he::action::state::failed);
     }

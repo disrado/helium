@@ -1,12 +1,11 @@
-#include "core/execution/action/action.hpp"
 #include "core/execution/action/async_action.hpp"
-#include "core/execution/scheduler.hpp"
 #include "core/execution/task_graph.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <memory>
-#include <thread>
+#include <stop_token>
+#include <tuple>
 
 
 TEST_CASE("async_action")
@@ -22,58 +21,45 @@ TEST_CASE("async_action")
         REQUIRE(graph->root().children().front().get() == &node);
     }
 
-    SECTION("runs on a worker thread")
+    SECTION("uses async launch policy")
     {
-        auto worker_thread_id{ std::thread::id{} };
-        auto completed{ false };
+        auto instance{ he::async_action{ [] (const he::async_action::context&) { return true; } } };
+
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        auto& node{ instance.build_graph(graph->root()) };
+
+        REQUIRE(node.mode == he::exec::launch_policy::async);
+    }
+
+    SECTION("wires its own execute() as the definition")
+    {
+        auto ran{ false };
 
         auto instance{
-            he::async_action{ [&worker_thread_id] (const he::async_action::context&)
+            he::async_action{ [&ran] (const he::async_action::context&)
             {
-                worker_thread_id = std::this_thread::get_id();
+                ran = true;
                 return true;
             } }
         };
 
-        instance.then(
-            he::action{ [&completed] (const he::action::context&)
-            {
-                completed = true;
-                return true;
-            } });
-
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(instance.build_graph(graph->root()));
+        auto& node{ instance.build_graph(graph->root()) };
 
-        while (!completed)
-        {
-            he::exec::scheduler::instance().process();
-        }
+        std::ignore = node.definition.try_execute(std::stop_token{});
 
-        REQUIRE(worker_thread_id != std::this_thread::get_id());
+        REQUIRE(ran);
         REQUIRE(instance.get_state() == he::async_action::state::succeeded);
     }
 
     SECTION("reports failure")
     {
-        auto completed{ false };
-
         auto instance{ he::async_action{ [] (const he::async_action::context&) { return false; } } };
 
-        instance.otherwise(
-            he::action{ [&completed] (const he::action::context&)
-            {
-                completed = true;
-                return true;
-            } });
-
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(instance.build_graph(graph->root()));
+        auto& node{ instance.build_graph(graph->root()) };
 
-        while (!completed)
-        {
-            he::exec::scheduler::instance().process();
-        }
+        std::ignore = node.definition.try_execute(std::stop_token{});
 
         REQUIRE(instance.get_state() == he::async_action::state::failed);
     }
