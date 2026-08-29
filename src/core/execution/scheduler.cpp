@@ -1,6 +1,7 @@
 #include "scheduler.hpp"
 
 #include <ranges>
+#include <tuple>
 
 
 namespace he::exec
@@ -193,13 +194,11 @@ auto scheduler::invoke_definition(const std::stop_token& token, const task_defin
         return execution_status::cancelled;
     }
 
-    definition(token);
-
-    return execution_status::completed;
+    return definition.try_execute(token) ? execution_status::completed : execution_status::faulted;
 }
 
 
-auto scheduler::process_task_completion(task_id id, execution_status status, const std::function<void(execution_status)>& on_complete) -> void
+auto scheduler::process_task_completion(task_id id, execution_status status, const task_completion& on_complete) -> void
 {
     {
         const auto _{ std::lock_guard{ _stop_sources_mutex } };
@@ -215,7 +214,7 @@ auto scheduler::process_task_completion(task_id id, execution_status status, con
         }
     }
 
-    on_complete(status);
+    std::ignore = on_complete.try_execute(status);
 }
 
 

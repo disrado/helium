@@ -10,7 +10,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <mutex>
 #include <stop_token>
@@ -24,8 +23,8 @@ struct task final
 {
 public:
     launch_policy mode;
-    std::function<void(std::stop_token)> definition;
-    std::function<void(execution_status)> on_complete;
+    task_definition definition;
+    task_completion on_complete;
 
     task_id id{ invalid_task_id };
     execution_status status{ execution_status::completed };
@@ -35,16 +34,13 @@ struct task_request final
 {
 public:
     launch_policy mode;
-    std::function<void(std::stop_token)> definition;
-    std::function<void(execution_status)> on_complete;
+    task_definition definition;
+    task_completion on_complete;
 };
 
 
 class scheduler final: public he::singleton<scheduler>
 {
-private:
-    using task_definition = std::function<void(std::stop_token)>;
-
 public:
     ~scheduler() override;
 
@@ -67,7 +63,7 @@ private:
 
     auto run_task(task target) -> void;
     auto invoke_definition(const std::stop_token& token, const task_definition& definition) -> execution_status;
-    auto process_task_completion(task_id id, execution_status status, const std::function<void(execution_status)>& on_complete) -> void;
+    auto process_task_completion(task_id id, execution_status status, const task_completion& on_complete) -> void;
     auto signal_async_complete() -> void;
 
 public:

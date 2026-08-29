@@ -1,6 +1,9 @@
 #pragma once
 
+#include "core/delegate/delegate.hpp"
+
 #include <cstdint>
+#include <stop_token>
 
 
 namespace he::exec
@@ -25,7 +28,11 @@ enum class launch_policy : uint8_t
 enum class execution_status : uint8_t
 {
     completed,
-    cancelled
+    cancelled,
+    faulted
 };
+
+using task_definition = he::delegate<void(std::stop_token)>;
+using task_completion = he::delegate<void(execution_status)>;
 
 }
