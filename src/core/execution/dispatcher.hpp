@@ -14,11 +14,4 @@ public:
     virtual auto dispatch(std::function<void()> work) -> void = 0;
 };
 
-
-class thread_dispatcher final: public dispatcher
-{
-public:
-    auto dispatch(std::function<void()> work) -> void override;
-};
-
 }

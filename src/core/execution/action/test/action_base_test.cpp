@@ -1,4 +1,5 @@
 #include "core/execution/action/action.hpp"
+#include "core/execution/task_graph.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -250,14 +251,15 @@ TEST_CASE("action_base chaining")
 
         auto root{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        root
-        .then(
+        root.then(
             he::action{ [&then_ran] (const he::action::context&)
             {
                 then_ran = true;
                 return true;
-            } })
-        .execute();
+            } });
+
+        auto graph{ he::exec::task_graph{} };
+        graph.activate(root.build_graph(graph.root()));
 
         REQUIRE(then_ran);
     }
@@ -268,14 +270,15 @@ TEST_CASE("action_base chaining")
 
         auto root{ he::action{ [] (const he::action::context&) { return false; } } };
 
-        root
-        .otherwise(
+        root.otherwise(
             he::action{ [&otherwise_ran] (const he::action::context&)
             {
                 otherwise_ran = true;
                 return true;
-            } })
-        .execute();
+            } });
+
+        auto graph{ he::exec::task_graph{} };
+        graph.activate(root.build_graph(graph.root()));
 
         REQUIRE(otherwise_ran);
     }
@@ -286,14 +289,15 @@ TEST_CASE("action_base chaining")
 
         auto root{ he::action{ [] (const he::action::context&) { return false; } } };
 
-        root
-        .then(
+        root.then(
             he::action{ [&then_ran] (const he::action::context&)
             {
                 then_ran = true;
                 return true;
-            } })
-        .execute();
+            } });
+
+        auto graph{ he::exec::task_graph{} };
+        graph.activate(root.build_graph(graph.root()));
 
         REQUIRE_FALSE(then_ran);
     }
@@ -304,14 +308,15 @@ TEST_CASE("action_base chaining")
 
         auto root{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        root
-        .otherwise(
+        root.otherwise(
             he::action{ [&otherwise_ran] (const he::action::context&)
             {
                 otherwise_ran = true;
                 return true;
-            } })
-        .execute();
+            } });
+
+        auto graph{ he::exec::task_graph{} };
+        graph.activate(root.build_graph(graph.root()));
 
         REQUIRE_FALSE(otherwise_ran);
     }
@@ -336,7 +341,8 @@ TEST_CASE("action_base chaining")
                 return true;
             } });
 
-        root.execute();
+        auto graph{ he::exec::task_graph{} };
+        graph.activate(root.build_graph(graph.root()));
 
         REQUIRE(then_ran);
         REQUIRE_FALSE(otherwise_ran);
@@ -346,24 +352,27 @@ TEST_CASE("action_base chaining")
     {
         auto order{ std::string{} };
 
-        he::action{ [&order] (const he::action::context&)
-        {
-            order += "a";
-            return true;
-        } }
-        .then(
+        auto graph{ he::exec::task_graph{} };
+
+        graph.activate(
             he::action{ [&order] (const he::action::context&)
             {
-                order += "b";
+                order += "a";
                 return true;
             } }
             .then(
                 he::action{ [&order] (const he::action::context&)
                 {
-                    order += "c";
+                    order += "b";
                     return true;
-                } }))
-        .execute();
+                } }
+                .then(
+                    he::action{ [&order] (const he::action::context&)
+                    {
+                        order += "c";
+                        return true;
+                    } }))
+            .build_graph(graph.root()));
 
         REQUIRE(order == "abc");
     }
@@ -373,7 +382,7 @@ TEST_CASE("action_base chaining")
         static auto custom_execute_ran{ false };
         custom_execute_ran = false;
 
-        class custom_action final: public he::exec::action_base<custom_action>
+        class custom_action final: public he::action
         {
         public:
             auto execute() -> void override
@@ -384,9 +393,12 @@ TEST_CASE("action_base chaining")
             }
         };
 
-        he::action{ [] (const he::action::context&) { return true; } }
-        .then(custom_action{})
-        .execute();
+        auto graph{ he::exec::task_graph{} };
+
+        graph.activate(
+            he::action{ [] (const he::action::context&) { return true; } }
+            .then(custom_action{})
+            .build_graph(graph.root()));
 
         REQUIRE(custom_execute_ran);
     }
@@ -397,16 +409,19 @@ TEST_CASE("action_base chaining")
 
         auto context{ he::action::context{ { "flag", true } } };
 
-        he::action{ [] (const he::action::context&) { return true; }, std::move(context) }
-        .then(
-            he::action{
-                [&received] (const he::action::context& ctx)
-                {
-                    received = std::any_cast<bool>(ctx.at("flag"));
-                    return true;
-                }
-            })
-        .execute();
+        auto graph{ he::exec::task_graph{} };
+
+        graph.activate(
+            he::action{ [] (const he::action::context&) { return true; }, std::move(context) }
+            .then(
+                he::action{
+                    [&received] (const he::action::context& ctx)
+                    {
+                        received = std::any_cast<bool>(ctx.at("flag"));
+                        return true;
+                    }
+                })
+            .build_graph(graph.root()));
 
         REQUIRE(received);
     }

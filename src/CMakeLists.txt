@@ -21,21 +21,25 @@ set(helium_headers
     core/delegate/delegate.hpp
     core/delegate/multicast_delegate.hpp
     core/delegate/utils.hpp
+    core/execution/action/action_base.hpp
     core/execution/action/action.hpp
-    core/execution/utils.hpp
     core/execution/run.hpp
     core/execution/defs.hpp
     core/execution/dispatcher.hpp
+    core/execution/thread_dispatcher.hpp
     core/execution/scheduler.hpp
+    core/execution/task_graph.hpp
     systems/logging.hpp
     systems/system_base.hpp
     systems/root_system.hpp)
 
 set(helium_sources
+    core/execution/action/action_base.cpp
     core/execution/action/action.cpp
     core/execution/run.cpp
-    core/execution/dispatcher.cpp
+    core/execution/thread_dispatcher.cpp
     core/execution/scheduler.cpp
+    core/execution/task_graph.cpp
     systems/logging.cpp
     systems/system_base.cpp)
 
@@ -65,9 +69,12 @@ set(test_sources
     core/delegate/test/delegate_test.cpp
     core/delegate/test/multicast_delegate_test.cpp
     core/test/event_bus_test.cpp
-    core/execution/test/action_test.cpp
     core/execution/test/run_test.cpp
     core/execution/test/scheduler_test.cpp
+    core/execution/test/task_graph_test.cpp
+    core/execution/test/thread_dispatcher_test.cpp
+    core/execution/action/test/action_base_test.cpp
+    core/execution/action/test/action_test.cpp
 )
 
 add_executable(helium_test_suite ${test_sources})

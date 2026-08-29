@@ -42,7 +42,7 @@ TEST_CASE("run")
         static auto custom_execute_ran{ false };
         custom_execute_ran = false;
 
-        class custom_action final: public he::exec::action_base<custom_action>
+        class custom_action final: public he::action
         {
         public:
             auto execute() -> void override

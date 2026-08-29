@@ -1,114 +1,47 @@
 #include "action.hpp"
 
 
-namespace he::exec
+namespace he
 {
 
-basic_action::basic_action(delegate<bool(const context&)> definition, std::optional<context> initial_context)
-    : _context{ std::move(initial_context) }
-    , _definition{ std::move(definition) }
+auto action::build_graph(exec::task_graph::node& parent) -> exec::task_graph::node&
 {
-}
+    auto& self_node{ parent.add_child() };
 
+    self_node.definition = exec::task_definition{ [this] (std::stop_token) { execute(); } };
 
-basic_action::~basic_action() noexcept
-{
-    // empty
-}
+    exec::task_graph::node* then_child{ nullptr };
+    exec::task_graph::node* else_child{ nullptr };
 
-
-auto basic_action::execute() -> void
-{
-    if (auto result{ _definition.try_execute(_context.value_or({})) }; result.has_value() && result.value())
+    if (_then_action)
     {
-        succeed();
-
-        return;
+        then_child = &_then_action->build_graph(self_node);
     }
 
-    fail();
-}
-
-
-auto basic_action::abort() -> void
-{
-    _definition = {};
-
-    _then_action = nullptr;
-    _else_action = nullptr;
-
-    set_state(state::aborted);
-}
-
-
-auto basic_action::get_state() const -> state
-{
-    return _state;
-}
-
-
-auto basic_action::on_success() -> void
-{
-    if (!_then_action)
+    if (_else_action)
     {
-        return;
+        else_child = &_else_action->build_graph(self_node);
     }
 
-    _then_action->_context = std::move(_context);
+    self_node.post_condition.bind(
+        [this, then_child, else_child]
+        {
+            if (_state == state::succeeded && then_child)
+            {
+                propagate_context_to(*_then_action);
 
-    _then_action->execute();
-}
+                then_child->activate();
+            }
 
+            if (_state == state::failed && else_child)
+            {
+                propagate_context_to(*_else_action);
 
-auto basic_action::on_failure() -> void
-{
-    if (!_else_action)
-    {
-        return;
-    }
+                else_child->activate();
+            }
+        });
 
-    _else_action->_context = std::move(_context);
-
-    _else_action->execute();
-}
-
-
-auto basic_action::succeed() -> void
-{
-    set_state(state::succeeded);
-
-    on_success();
-}
-
-
-auto basic_action::fail() -> void
-{
-    set_state(state::failed);
-
-    on_failure();
-}
-
-
-auto basic_action::set_state(state new_state) -> void
-{
-    _state = new_state;
-
-    if (const auto found{ _ons.find(_state) }; found != std::ranges::end(_ons))
-    {
-        std::ignore = found->second.execute();
-    }
-}
-
-
-auto basic_action::store_and_then(std::unique_ptr<basic_action> next_action) -> void
-{
-    _then_action = std::move(next_action);
-}
-
-
-auto basic_action::store_or_else(std::unique_ptr<basic_action> next_action) -> void
-{
-    _else_action = std::move(next_action);
+    return self_node;
 }
 
 }
