@@ -3,6 +3,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <memory>
+
 
 namespace
 {
@@ -258,8 +260,8 @@ TEST_CASE("action_base chaining")
                 return true;
             } });
 
-        auto graph{ he::exec::task_graph{} };
-        graph.activate(root.build_graph(graph.root()));
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(root.build_graph(graph->root()));
 
         REQUIRE(then_ran);
     }
@@ -277,8 +279,8 @@ TEST_CASE("action_base chaining")
                 return true;
             } });
 
-        auto graph{ he::exec::task_graph{} };
-        graph.activate(root.build_graph(graph.root()));
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(root.build_graph(graph->root()));
 
         REQUIRE(otherwise_ran);
     }
@@ -296,8 +298,8 @@ TEST_CASE("action_base chaining")
                 return true;
             } });
 
-        auto graph{ he::exec::task_graph{} };
-        graph.activate(root.build_graph(graph.root()));
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(root.build_graph(graph->root()));
 
         REQUIRE_FALSE(then_ran);
     }
@@ -315,8 +317,8 @@ TEST_CASE("action_base chaining")
                 return true;
             } });
 
-        auto graph{ he::exec::task_graph{} };
-        graph.activate(root.build_graph(graph.root()));
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(root.build_graph(graph->root()));
 
         REQUIRE_FALSE(otherwise_ran);
     }
@@ -341,8 +343,8 @@ TEST_CASE("action_base chaining")
                 return true;
             } });
 
-        auto graph{ he::exec::task_graph{} };
-        graph.activate(root.build_graph(graph.root()));
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(root.build_graph(graph->root()));
 
         REQUIRE(then_ran);
         REQUIRE_FALSE(otherwise_ran);
@@ -352,9 +354,9 @@ TEST_CASE("action_base chaining")
     {
         auto order{ std::string{} };
 
-        auto graph{ he::exec::task_graph{} };
+        auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph.activate(
+        graph->activate(
             he::action{ [&order] (const he::action::context&)
             {
                 order += "a";
@@ -372,7 +374,7 @@ TEST_CASE("action_base chaining")
                         order += "c";
                         return true;
                     } }))
-            .build_graph(graph.root()));
+            .build_graph(graph->root()));
 
         REQUIRE(order == "abc");
     }
@@ -393,12 +395,12 @@ TEST_CASE("action_base chaining")
             }
         };
 
-        auto graph{ he::exec::task_graph{} };
+        auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph.activate(
+        graph->activate(
             he::action{ [] (const he::action::context&) { return true; } }
             .then(custom_action{})
-            .build_graph(graph.root()));
+            .build_graph(graph->root()));
 
         REQUIRE(custom_execute_ran);
     }
@@ -409,9 +411,9 @@ TEST_CASE("action_base chaining")
 
         auto context{ he::action::context{ { "flag", true } } };
 
-        auto graph{ he::exec::task_graph{} };
+        auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph.activate(
+        graph->activate(
             he::action{ [] (const he::action::context&) { return true; }, std::move(context) }
             .then(
                 he::action{
@@ -421,7 +423,7 @@ TEST_CASE("action_base chaining")
                         return true;
                     }
                 })
-            .build_graph(graph.root()));
+            .build_graph(graph->root()));
 
         REQUIRE(received);
     }

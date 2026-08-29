@@ -3,21 +3,23 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <memory>
+
 
 TEST_CASE("action")
 {
-    SECTION("build_graph adds itself as a child of parent")
+    SECTION("adds itself as a child")
     {
         auto instance{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        auto graph{ he::exec::task_graph{} };
-        auto& node{ instance.build_graph(graph.root()) };
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        auto& node{ instance.build_graph(graph->root()) };
 
-        REQUIRE(graph.root().children().size() == 1);
-        REQUIRE(graph.root().children().front().get() == &node);
+        REQUIRE(graph->root().children().size() == 1);
+        REQUIRE(graph->root().children().front().get() == &node);
     }
 
-    SECTION("build_graph runs the definition when activated")
+    SECTION("runs when activated")
     {
         auto ran{ false };
 
@@ -29,19 +31,19 @@ TEST_CASE("action")
             } }
         };
 
-        auto graph{ he::exec::task_graph{} };
-        graph.activate(instance.build_graph(graph.root()));
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(instance.build_graph(graph->root()));
 
         REQUIRE(ran);
         REQUIRE(instance.get_state() == he::action::state::succeeded);
     }
 
-    SECTION("build_graph reports failure")
+    SECTION("reports failure")
     {
         auto instance{ he::action{ [] (const he::action::context&) { return false; } } };
 
-        auto graph{ he::exec::task_graph{} };
-        graph.activate(instance.build_graph(graph.root()));
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(instance.build_graph(graph->root()));
 
         REQUIRE(instance.get_state() == he::action::state::failed);
     }
