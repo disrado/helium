@@ -63,7 +63,7 @@ TEST_CASE("task_graph activation")
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
         graph->root().definition.bind([&order] (std::stop_token) { order += "d"; });
-        graph->root().post_condition.bind([&order] { order += "p"; });
+        graph->root().post_condition.bind([&order] (he::exec::execution_status) { order += "p"; });
 
         graph->activate(graph->root());
 
@@ -76,7 +76,7 @@ TEST_CASE("task_graph activation")
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph->root().post_condition.bind([&fired] { fired = true; });
+        graph->root().post_condition.bind([&fired] (he::exec::execution_status) { fired = true; });
 
         graph->activate(graph->root());
 
@@ -91,7 +91,7 @@ TEST_CASE("task_graph activation")
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
         graph->root().definition.bind([&ran] (std::stop_token) { ran = true; });
-        graph->root().post_condition.bind([&fired] { fired = true; });
+        graph->root().post_condition.bind([&fired] (he::exec::execution_status) { fired = true; });
         graph->root().pre_condition.bind([] { return false; });
 
         graph->activate(graph->root());
@@ -126,7 +126,7 @@ TEST_CASE("task_graph traversal")
         auto& child{ graph->root().add_child() };
         child.definition.bind([&ran] (std::stop_token) { ran = true; });
 
-        graph->root().post_condition.bind([&child] { child.activate(); });
+        graph->root().post_condition.bind([&child] (he::exec::execution_status) { child.activate(); });
 
         graph->activate(graph->root());
 
@@ -148,6 +148,7 @@ TEST_CASE("task_graph traversal")
 
         graph->root().post_condition.bind(
             [&first, &second]
+            (he::exec::execution_status)
             {
                 first.activate();
                 second.activate();
@@ -172,7 +173,7 @@ TEST_CASE("task_graph traversal")
         auto& skipped{ graph->root().add_child() };
         skipped.definition.bind([&skipped_ran] (std::stop_token) { skipped_ran = true; });
 
-        graph->root().post_condition.bind([&taken] { taken.activate(); });
+        graph->root().post_condition.bind([&taken] (he::exec::execution_status) { taken.activate(); });
 
         graph->activate(graph->root());
 

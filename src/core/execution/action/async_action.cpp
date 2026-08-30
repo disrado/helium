@@ -9,14 +9,20 @@ auto async_action::expand_on_graph(exec::task_graph::node& parent) -> exec::grap
     auto& self_node{ parent.add_child() };
 
     self_node.mode = exec::launch_policy::async;
-    self_node.definition = exec::task_definition{ [this] (std::stop_token) { execute(); } };
+    self_node.definition = exec::task_definition{ [this] (std::stop_token token) { execute(std::move(token)); } };
 
     auto* const then_child{ _then_action ? &_then_action->translate_into_graph(self_node).begin : nullptr };
     auto* const else_child{ _else_action ? &_else_action->translate_into_graph(self_node).begin : nullptr };
 
     self_node.post_condition.bind(
         [this, then_child, else_child]
+        (exec::execution_status status)
         {
+            if (status == exec::execution_status::cancelled && _state == state::dormant)
+            {
+                fail();
+            }
+
             if (_state == state::succeeded && then_child)
             {
                 _then_action->set_context(_context);

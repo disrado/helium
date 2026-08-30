@@ -198,7 +198,7 @@ TEST_CASE("action chaining")
         class custom_action final: public he::action
         {
         public:
-            auto execute() -> void override
+            auto execute(std::stop_token) -> void override
             {
                 custom_execute_ran = true;
 

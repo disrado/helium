@@ -6,6 +6,14 @@ namespace he::exec
 
 basic_action::basic_action(delegate<bool(const context&)> definition, std::optional<context> initial_context)
     : _context{ std::move(initial_context) }
+    , _definition{
+        [fn{ std::move(definition) }] (const context& ctx, std::stop_token) { return fn.try_execute(ctx).value_or(false); } }
+{
+}
+
+
+basic_action::basic_action(delegate<bool(const context&, std::stop_token)> definition, std::optional<context> initial_context)
+    : _context{ std::move(initial_context) }
     , _definition{ std::move(definition) }
 {
 }
@@ -17,9 +25,9 @@ basic_action::~basic_action() noexcept
 }
 
 
-auto basic_action::execute() -> void
+auto basic_action::execute(std::stop_token token) -> void
 {
-    if (auto result{ _definition.try_execute(_context.value_or({})) }; result.has_value() && result.value())
+    if (auto result{ _definition.try_execute(_context.value_or({}), std::move(token)) }; result.has_value() && result.value())
     {
         succeed();
 

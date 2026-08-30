@@ -15,6 +15,7 @@ auto sequential_composite::expand_on_graph(exec::task_graph::node& parent) -> ex
 
     self_node.post_condition.bind(
         [this, first_step{ _steps.front().get() }, first_entry{ &sequence.begin }]
+        (exec::execution_status)
         {
             if (get_context().has_value())
             {
@@ -49,6 +50,7 @@ auto sequential_composite::setup_sequence(
 
         entries[i].end.post_condition.bind(
             [this, current_step, next_begin, next_step, then_child, else_child]
+            (exec::execution_status)
             {
                 if (current_step->get_state() == state::succeeded)
                 {

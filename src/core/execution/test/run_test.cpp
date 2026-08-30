@@ -9,6 +9,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <stop_token>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -55,7 +56,7 @@ TEST_CASE("run")
         class custom_action final: public he::action
         {
         public:
-            auto execute() -> void override
+            auto execute(std::stop_token) -> void override
             {
                 custom_execute_ran = true;
 
@@ -123,7 +124,7 @@ TEST_CASE("run example")
         class plain_action final: public he::action
         {
         public:
-            auto execute() -> void override
+            auto execute(std::stop_token) -> void override
             {
                 succeed();
             }
@@ -132,7 +133,7 @@ TEST_CASE("run example")
         class label_reader_action final: public he::action
         {
         public:
-            auto execute() -> void override
+            auto execute(std::stop_token) -> void override
             {
                 std::ignore = std::any_cast<std::string>(get_context().value().at("label"));
 

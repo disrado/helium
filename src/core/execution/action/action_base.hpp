@@ -8,6 +8,7 @@
 #include <any>
 #include <map>
 #include <memory>
+#include <stop_token>
 #include <string>
 
 
@@ -40,9 +41,11 @@ public:
     basic_action() = default;
 
     explicit basic_action(delegate<bool(const context&)> definition, std::optional<context> initial_context = std::nullopt);
+    explicit basic_action(delegate<bool(const context&, std::stop_token)> definition, std::optional<context> initial_context = std::nullopt);
 
     template <typename callable_t>
         requires std::is_invocable_r_v<bool, callable_t, const context&>
+              || std::is_invocable_r_v<bool, callable_t, const context&, std::stop_token>
     explicit basic_action(callable_t definition, std::optional<context> initial_context = std::nullopt);
 
     basic_action(basic_action&&) noexcept = default;
@@ -50,7 +53,7 @@ public:
 
     virtual ~basic_action() noexcept = 0;
 
-    virtual auto execute() -> void;
+    virtual auto execute(std::stop_token token = {}) -> void;
     virtual auto abort() -> void;
 
     auto translate_into_graph(task_graph::node& parent) -> graph_segment;
@@ -84,16 +87,25 @@ protected:
     std::map<state, multicast_delegate<>> _ons;
 
 private:
-    delegate<bool(const context&)> _definition;
+    delegate<bool(const context&, std::stop_token)> _definition;
 };
 
 
 template <typename callable_t>
     requires std::is_invocable_r_v<bool, callable_t, const basic_action::context&>
+          || std::is_invocable_r_v<bool, callable_t, const basic_action::context&, std::stop_token>
 basic_action::basic_action(callable_t definition, std::optional<context> initial_context)
     : _context{ std::move(initial_context) }
-    , _definition{ std::move(definition) }
 {
+    if constexpr (std::is_invocable_r_v<bool, callable_t, const basic_action::context&, std::stop_token>)
+    {
+        _definition = delegate<bool(const context&, std::stop_token)>{ std::move(definition) };
+    }
+    else
+    {
+        _definition = delegate<bool(const context&, std::stop_token)>{
+            [fn{ std::move(definition) }] (const context& ctx, std::stop_token) mutable { return fn(ctx); } };
+    }
 }
 
 

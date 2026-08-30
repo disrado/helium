@@ -109,7 +109,7 @@ auto task_graph::run_node(node& current) -> void
 
     if (!current.definition.is_bound())
     {
-        std::ignore = current.post_condition.execute();
+        std::ignore = current.post_condition.execute(execution_status::completed);
 
         return;
     }
@@ -119,9 +119,9 @@ auto task_graph::run_node(node& current) -> void
             .mode{ current.mode },
             .definition{ current.definition },
             .on_complete{
-                [self{ shared_from_this() }, current{ &current }] (execution_status)
+                [self{ shared_from_this() }, current{ &current }] (execution_status status)
                 {
-                    std::ignore = current->post_condition.execute();
+                    std::ignore = current->post_condition.execute(status);
 
                     self->advance();
                 } }

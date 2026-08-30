@@ -30,7 +30,7 @@ public:
         launch_policy mode{ launch_policy::sync };
         task_definition definition;
         delegate<bool()> pre_condition;
-        multicast_delegate<> post_condition;
+        multicast_delegate<execution_status> post_condition;
 
         // opaque keep-alive: pins an owner for as long as the node exists
         std::shared_ptr<void> anchor;
