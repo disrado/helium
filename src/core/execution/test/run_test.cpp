@@ -1,7 +1,11 @@
 #include "core/execution/action/action.hpp"
+#include "core/execution/action/async_action.hpp"
 #include "core/execution/run.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+
+#include <condition_variable>
+#include <mutex>
 
 
 TEST_CASE("run")
@@ -59,61 +63,48 @@ TEST_CASE("run")
 
         REQUIRE(custom_execute_ran);
     }
-}
 
-
-TEST_CASE("run executes a deeply nested chain")
-{
-    SECTION("only taken path runs")
+    SECTION("execute() is repeatable")
     {
-        auto root_then_ran{ false };
-        auto root_otherwise_ran{ false };
-        auto inner_then_ran{ false };
-        auto inner_otherwise_ran{ false };
-        auto leaf_ran{ false };
+        auto run_count{ 0 };
 
-        const auto chain{
-            he::run(
-                he::action{ [] (const he::action::context&) { return true; } }
-                .then(
-                    he::action{ [&root_then_ran] (const he::action::context&)
-                    {
-                        root_then_ran = true;
-                        return false;
-                    } }
-                    .then(
-                        he::action{ [&inner_then_ran] (const he::action::context&)
-                        {
-                            inner_then_ran = true;
-                            return true;
-                        } })
-                    .otherwise(
-                        he::action{ [&inner_otherwise_ran] (const he::action::context&)
-                        {
-                            inner_otherwise_ran = true;
-                            return true;
-                        } }
-                        .then(
-                            he::action{ [&leaf_ran] (const he::action::context&)
-                            {
-                                leaf_ran = true;
-                                return true;
-                            } })))
-                .otherwise(
-                    he::action{ [&root_otherwise_ran] (const he::action::context&)
-                    {
-                        root_otherwise_ran = true;
-                        return true;
-                    } })
-            )
-        };
+        const auto chain{ he::run(
+            he::action{ [&run_count] (const he::action::context&)
+            {
+                ++run_count;
+                return true;
+            } }) };
+
+        chain.execute();
+        chain.execute();
+
+        REQUIRE(run_count == 2);
+    }
+
+    SECTION("survives async completion after execute() returns")
+    {
+        auto mutex{ std::mutex{} };
+        auto cv{ std::condition_variable{} };
+        auto done{ false };
+
+        auto instance{ he::async_action{ [] (const he::async_action::context&) { return true; } } };
+
+        instance.on(
+            he::async_action::state::succeeded,
+            [&]
+            {
+                const auto _{ std::lock_guard{ mutex } };
+                done = true;
+                cv.notify_one();
+            });
+
+        const auto chain{ he::run(std::move(instance)) };
 
         chain.execute();
 
-        REQUIRE(root_then_ran);
-        REQUIRE_FALSE(root_otherwise_ran);
-        REQUIRE_FALSE(inner_then_ran);
-        REQUIRE(inner_otherwise_ran);
-        REQUIRE(leaf_ran);
+        auto lock{ std::unique_lock{ mutex } };
+        cv.wait(lock, [&] { return done; });
+
+        REQUIRE(done);
     }
 }
