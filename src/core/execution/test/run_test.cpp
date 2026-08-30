@@ -14,6 +14,8 @@
 #include <tuple>
 #include <utility>
 
+#include "core/execution/action/parallel_composite.hpp"
+
 
 TEST_CASE("run")
 {
@@ -192,7 +194,16 @@ TEST_CASE("run example")
                     .then(he::sequential_composite{
                         he::async_action{ [] (const he::async_action::context&) { return true; } },
                         he::async_action{ [] (const he::async_action::context&) { return true; } }
-                            .then(plain_action{})
+                            .then(plain_action{}
+                                .then(he::parallel_composite{
+                                    he::async_action{ [] (const he::async_action::context&) { return true; } },
+                                    he::async_action{ [] (const he::async_action::context&) { return true; } },
+                                    plain_action{},
+                                    he::async_action{ [] (const he::async_action::context&) { return true; } }
+                                        .then(plain_action{}),
+                                    plain_action{},
+                                    plain_action{}
+                                }))
                             .otherwise(label_reader_action{}),
                         plain_action{},
                         he::async_action{ [] (const he::async_action::context&) { return true; } },
