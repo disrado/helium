@@ -51,7 +51,11 @@ auto task_graph::root() -> node&
 
 auto task_graph::activate(node& target) -> void
 {
-    _stack.push_back(&target);
+    {
+        const auto _{ std::lock_guard{ _mutex } };
+
+        _stack.push_back(&target);
+    }
 
     advance();
 }
@@ -59,6 +63,8 @@ auto task_graph::activate(node& target) -> void
 
 auto task_graph::advance() -> void
 {
+    auto lock{ std::unique_lock{ _mutex } };
+
     if (_running)
     {
         return;
@@ -71,14 +77,21 @@ auto task_graph::advance() -> void
         auto* current{ _stack.back() };
         _stack.pop_back();
 
+        // unlocked while running: may re-enter activate()/advance(), same thread or another
+        lock.unlock();
+
         if (!current->pre_condition.try_execute().value_or(true))
         {
+            lock.lock();
+
             continue;
         }
 
         if (!current->definition.is_bound())
         {
             std::ignore = current->post_condition.execute();
+
+            lock.lock();
 
             continue;
         }
@@ -95,6 +108,8 @@ auto task_graph::advance() -> void
                         self->advance();
                     } }
             });
+
+        lock.lock();
     }
 
     _running = false;

@@ -5,6 +5,7 @@
 #include "core/execution/defs.hpp"
 
 #include <memory>
+#include <mutex>
 #include <vector>
 
 
@@ -31,6 +32,9 @@ public:
         delegate<bool()> pre_condition;
         multicast_delegate<> post_condition;
 
+        // opaque keep-alive: pins an owner for as long as the node exists
+        std::shared_ptr<void> anchor;
+
     private:
         task_graph& _graph;
         node* _parent;
@@ -48,7 +52,11 @@ private:
 
 private:
     node _root;
+
     std::vector<node*> _stack;
+    // guards _stack/_running: activate() may be called cross-thread from an async completion
+    std::mutex _mutex;
+
     bool _running{ false };
 };
 
