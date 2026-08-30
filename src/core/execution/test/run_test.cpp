@@ -2,6 +2,7 @@
 #include "core/execution/action/async_action.hpp"
 #include "core/execution/action/sequential_composite.hpp"
 #include "core/execution/run.hpp"
+#include "core/execution/scheduler.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -177,6 +178,7 @@ TEST_CASE("run example")
 
         while (!done)
         {
+            he::exec::scheduler::instance().process();
         }
     }
 }

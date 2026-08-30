@@ -14,7 +14,7 @@ public:
     using action_base::action_base;
 
 protected:
-    auto expand_on_graph(exec::task_graph::node& parent) -> exec::task_graph::node& override;
+    auto expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segment override;
 };
 
 }

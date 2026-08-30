@@ -19,18 +19,13 @@ public:
     explicit sequential_composite(action_ts&&... steps);
 
 protected:
-    auto expand_on_graph(exec::task_graph::node& parent) -> exec::task_graph::node& override;
+    auto expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segment override;
 
 private:
-    struct graph_sequence final
-    {
-    public:
-        exec::task_graph::node* first{ nullptr };
-        basic_action* last_action{ nullptr };
-    };
-
-    auto setup_sequence(exec::task_graph::node& self_node) -> graph_sequence;
-    auto setup_completion(exec::task_graph::node& self_node, const graph_sequence& chain) -> void;
+    auto setup_sequence(
+        exec::task_graph::node& self_node,
+        exec::task_graph::node* then_child,
+        exec::task_graph::node* else_child) -> exec::graph_segment;
 
 private:
     std::vector<std::unique_ptr<basic_action>> _steps;

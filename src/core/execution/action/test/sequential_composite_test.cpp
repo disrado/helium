@@ -2,12 +2,14 @@
 #include "core/execution/action/async_action.hpp"
 #include "core/execution/action/sequential_composite.hpp"
 #include "core/execution/run.hpp"
+#include "core/execution/scheduler.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <atomic>
 #include <optional>
 #include <string>
+#include <thread>
 
 
 TEST_CASE("sequential_composite")
@@ -42,20 +44,15 @@ TEST_CASE("sequential_composite")
         REQUIRE(order == "abc");
     }
 
-    SECTION("stops after a step fails")
+    SECTION("stops after a mid-chain step fails")
     {
-        auto second_ran{ false };
         auto third_ran{ false };
 
         const auto chain{
             he::run(
                 he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
                     he::action{ [] (const he::action::context&) { return false; } },
-                    he::action{ [&second_ran] (const he::action::context&)
-                    {
-                        second_ran = true;
-                        return true;
-                    } },
                     he::action{ [&third_ran] (const he::action::context&)
                     {
                         third_ran = true;
@@ -66,8 +63,28 @@ TEST_CASE("sequential_composite")
 
         chain.execute();
 
-        REQUIRE_FALSE(second_ran);
         REQUIRE_FALSE(third_ran);
+    }
+
+    SECTION("fails on mid-chain failure")
+    {
+        auto failed{ false };
+
+        auto composite{
+            he::sequential_composite{
+                he::action{ [] (const he::action::context&) { return true; } },
+                he::action{ [] (const he::action::context&) { return false; } },
+                he::action{ [] (const he::action::context&) { return true; } }
+            }
+        };
+
+        composite.on(he::action::state::failed, [&failed] { failed = true; });
+
+        const auto chain{ he::run(std::move(composite)) };
+
+        chain.execute();
+
+        REQUIRE(failed);
     }
 
     SECTION("context propagates to next sibling")
@@ -98,7 +115,7 @@ TEST_CASE("sequential_composite")
         REQUIRE(received.value() == "run");
     }
 
-    SECTION("context propagates into nested composite's first step")
+    SECTION("context propagates into nested composite")
     {
         auto received{ std::optional<std::string>{} };
 
@@ -216,7 +233,31 @@ TEST_CASE("sequential_composite chaining")
         REQUIRE(otherwise_ran);
     }
 
-    SECTION("context propagates from last step to then branch")
+    SECTION("otherwise runs on mid-chain failure")
+    {
+        auto otherwise_ran{ false };
+
+        const auto chain{
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return false; } },
+                    he::action{ [] (const he::action::context&) { return true; } }
+                }
+                .otherwise(
+                    he::action{ [&otherwise_ran] (const he::action::context&)
+                    {
+                        otherwise_ran = true;
+                        return true;
+                    } }))
+        };
+
+        chain.execute();
+
+        REQUIRE(otherwise_ran);
+    }
+
+    SECTION("context propagates to then branch")
     {
         auto received{ std::optional<std::string>{} };
 
@@ -275,8 +316,55 @@ TEST_CASE("sequential_composite with async step")
 
         while (!done)
         {
+            he::exec::scheduler::instance().process();
         }
 
         REQUIRE(order == "ab");
+    }
+}
+
+
+TEST_CASE("sequential_composite thread marshaling")
+{
+    SECTION("continues past a buried async step")
+    {
+        auto worker_thread_id{ std::optional<std::thread::id>{} };
+        auto continuation_thread_id{ std::optional<std::thread::id>{} };
+        auto continuation_ran{ false };
+
+        const auto chain{
+            he::run(
+                he::sequential_composite{
+                    he::sequential_composite{
+                        he::action{ [] (const he::action::context&) { return true; } },
+                        he::async_action{ [&worker_thread_id] (const he::async_action::context&)
+                        {
+                            worker_thread_id = std::this_thread::get_id();
+                            return true;
+                        } }
+                    },
+                    he::action{ [&continuation_thread_id, &continuation_ran] (const he::action::context&)
+                    {
+                        continuation_thread_id = std::this_thread::get_id();
+                        continuation_ran = true;
+                        return true;
+                    } }
+                })
+        };
+
+        chain.execute();
+
+        // proves the continuation is marshaled, not fired inline on the worker thread
+        REQUIRE_FALSE(continuation_ran);
+
+        while (!continuation_ran)
+        {
+            he::exec::scheduler::instance().process();
+        }
+
+        REQUIRE(worker_thread_id.has_value());
+        REQUIRE(continuation_thread_id.has_value());
+        REQUIRE(continuation_thread_id.value() == std::this_thread::get_id());
+        REQUIRE(continuation_thread_id.value() != worker_thread_id.value());
     }
 }

@@ -14,6 +14,14 @@
 namespace he::exec
 {
 
+struct graph_segment final
+{
+public:
+    task_graph::node& begin;
+    task_graph::node& end;
+};
+
+
 class basic_action: public std::enable_shared_from_this<basic_action>
 {
 public:
@@ -45,8 +53,7 @@ public:
     virtual auto execute() -> void;
     virtual auto abort() -> void;
 
-    // builds the subtree and pins it alive for as long as the node exists; override expand_on_graph(), not this
-    auto translate_into_graph(task_graph::node& parent) -> task_graph::node&;
+    auto translate_into_graph(task_graph::node& parent) -> graph_segment;
 
     auto get_state() const -> state;
     auto get_context() const -> const std::optional<context>&;
@@ -64,7 +71,7 @@ protected:
     auto store_and_then(std::unique_ptr<basic_action> next_action) -> void;
     auto store_or_else(std::unique_ptr<basic_action> next_action) -> void;
 
-    virtual auto expand_on_graph(task_graph::node& parent) -> task_graph::node& = 0;
+    virtual auto expand_on_graph(task_graph::node& parent) -> graph_segment = 0;
 
 protected:
     state _state{ state::dormant };

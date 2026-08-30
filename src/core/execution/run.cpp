@@ -10,7 +10,7 @@ auto run::execute() const -> void
 {
     auto graph{ std::make_shared<exec::task_graph>() };
 
-    graph->activate(_target->translate_into_graph(graph->root()));
+    graph->activate(_target->translate_into_graph(graph->root()).begin);
 }
 
 auto run::abort() const -> void

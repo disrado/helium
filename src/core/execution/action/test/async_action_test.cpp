@@ -15,7 +15,7 @@ TEST_CASE("async_action")
         auto instance{ he::async_action{ [] (const he::async_action::context&) { return true; } } };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()) };
+        auto& node{ instance.translate_into_graph(graph->root()).begin };
 
         REQUIRE(graph->root().children().size() == 1);
         REQUIRE(graph->root().children().front().get() == &node);
@@ -26,7 +26,7 @@ TEST_CASE("async_action")
         auto instance{ he::async_action{ [] (const he::async_action::context&) { return true; } } };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()) };
+        auto& node{ instance.translate_into_graph(graph->root()).begin };
 
         REQUIRE(node.mode == he::exec::launch_policy::async);
     }
@@ -44,7 +44,7 @@ TEST_CASE("async_action")
         };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()) };
+        auto& node{ instance.translate_into_graph(graph->root()).begin };
 
         std::ignore = node.definition.try_execute(std::stop_token{});
 
@@ -57,7 +57,7 @@ TEST_CASE("async_action")
         auto instance{ he::async_action{ [] (const he::async_action::context&) { return false; } } };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()) };
+        auto& node{ instance.translate_into_graph(graph->root()).begin };
 
         std::ignore = node.definition.try_execute(std::stop_token{});
 

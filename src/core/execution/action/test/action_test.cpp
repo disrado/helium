@@ -15,7 +15,7 @@ TEST_CASE("action")
         auto instance{ he::action{ [] (const he::action::context&) { return true; } } };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()) };
+        auto& node{ instance.translate_into_graph(graph->root()).begin };
 
         REQUIRE(graph->root().children().size() == 1);
         REQUIRE(graph->root().children().front().get() == &node);
@@ -34,7 +34,7 @@ TEST_CASE("action")
         };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()) };
+        auto& node{ instance.translate_into_graph(graph->root()).begin };
 
         std::ignore = node.definition.try_execute(std::stop_token{});
 
@@ -47,7 +47,7 @@ TEST_CASE("action")
         auto instance{ he::action{ [] (const he::action::context&) { return false; } } };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()) };
+        auto& node{ instance.translate_into_graph(graph->root()).begin };
 
         std::ignore = node.definition.try_execute(std::stop_token{});
 
@@ -72,7 +72,7 @@ TEST_CASE("action chaining")
             } });
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(root.translate_into_graph(graph->root()));
+        graph->activate(root.translate_into_graph(graph->root()).begin);
 
         REQUIRE(then_ran);
     }
@@ -91,7 +91,7 @@ TEST_CASE("action chaining")
             } });
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(root.translate_into_graph(graph->root()));
+        graph->activate(root.translate_into_graph(graph->root()).begin);
 
         REQUIRE(otherwise_ran);
     }
@@ -110,7 +110,7 @@ TEST_CASE("action chaining")
             } });
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(root.translate_into_graph(graph->root()));
+        graph->activate(root.translate_into_graph(graph->root()).begin);
 
         REQUIRE_FALSE(then_ran);
     }
@@ -129,7 +129,7 @@ TEST_CASE("action chaining")
             } });
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(root.translate_into_graph(graph->root()));
+        graph->activate(root.translate_into_graph(graph->root()).begin);
 
         REQUIRE_FALSE(otherwise_ran);
     }
@@ -155,7 +155,7 @@ TEST_CASE("action chaining")
             } });
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(root.translate_into_graph(graph->root()));
+        graph->activate(root.translate_into_graph(graph->root()).begin);
 
         REQUIRE(then_ran);
         REQUIRE_FALSE(otherwise_ran);
@@ -185,7 +185,7 @@ TEST_CASE("action chaining")
                         order += "c";
                         return true;
                     } }))
-            .translate_into_graph(graph->root()));
+            .translate_into_graph(graph->root()).begin);
 
         REQUIRE(order == "abc");
     }
@@ -211,7 +211,7 @@ TEST_CASE("action chaining")
         graph->activate(
             he::action{ [] (const he::action::context&) { return true; } }
             .then(custom_action{})
-            .translate_into_graph(graph->root()));
+            .translate_into_graph(graph->root()).begin);
 
         REQUIRE(custom_execute_ran);
     }
@@ -234,7 +234,7 @@ TEST_CASE("action chaining")
                         return true;
                     }
                 })
-            .translate_into_graph(graph->root()));
+            .translate_into_graph(graph->root()).begin);
 
         REQUIRE(received);
     }
