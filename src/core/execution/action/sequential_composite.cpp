@@ -43,7 +43,7 @@ auto sequential_composite::setup_sequence(exec::task_graph::node& self_node) -> 
             auto* previous_step{ sequence.last_action };
 
             sequence.last->post_condition.bind(
-                [previous_step, current_step = step.get(), &step_entry]
+                [previous_step, current_step{ step.get() }, &step_entry]
                 {
                     if (previous_step->get_state() == state::succeeded)
                     {

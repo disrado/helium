@@ -120,7 +120,7 @@ auto scheduler::dispatch_async(task new_task) -> void
     const auto dispatcher{ _dispatcher.load() };
 
     dispatcher->dispatch(
-        [this, target = std::move(new_task), token]() mutable
+        [this, target{ std::move(new_task) }, token]() mutable
         {
             target.status = invoke_definition(token, target.definition);
 
