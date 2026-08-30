@@ -368,3 +368,24 @@ TEST_CASE("sequential_composite thread marshaling")
         REQUIRE(continuation_thread_id.value() != worker_thread_id.value());
     }
 }
+
+
+TEST_CASE("sequential_composite abort")
+{
+    SECTION("does not cascade to steps")
+    {
+        auto step_aborted{ false };
+
+        auto step{ he::action{ [] (const he::action::context&) { return true; } } };
+
+        step.on(he::action::state::aborted, [&step_aborted] { step_aborted = true; });
+
+        auto composite{ he::sequential_composite{ std::move(step) } };
+
+        const auto chain{ he::run(std::move(composite)) };
+
+        chain.abort();
+
+        REQUIRE_FALSE(step_aborted);
+    }
+}

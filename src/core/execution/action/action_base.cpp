@@ -1,5 +1,7 @@
 #include "action_base.hpp"
 
+#include "core/execution/scheduler.hpp"
+
 
 namespace he::exec
 {
@@ -42,6 +44,9 @@ auto basic_action::translate_into_graph(task_graph::node& parent) -> graph_segme
 {
     auto segment{ expand_on_graph(parent) };
 
+    _self_node = &segment.begin;
+    _self_graph = segment.begin.owning_graph();
+
     if (auto self{ weak_from_this().lock() })
     {
         segment.begin.anchor = std::move(self);
@@ -53,6 +58,14 @@ auto basic_action::translate_into_graph(task_graph::node& parent) -> graph_segme
 
 auto basic_action::abort() -> void
 {
+    if (auto graph{ _self_graph.lock() })
+    {
+        if (_self_node->id != invalid_task_id)
+        {
+            scheduler::instance().cancel(_self_node->id);
+        }
+    }
+
     _definition = {};
 
     _then_action = nullptr;

@@ -48,6 +48,45 @@ TEST_CASE("run")
         REQUIRE(fired);
     }
 
+    SECTION("abort cancels an in-flight async task")
+    {
+        auto started{ std::atomic<bool>{ false } };
+        auto observed_cancel{ std::atomic<bool>{ false } };
+
+        auto instance{
+            he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token token)
+            {
+                started = true;
+
+                while (!token.stop_requested())
+                {
+                }
+
+                observed_cancel = true;
+
+                return false;
+            } }
+        };
+
+        const auto chain{ he::run(std::move(instance)) };
+
+        chain.execute();
+
+        while (!started)
+        {
+        }
+
+        chain.abort();
+
+        while (!observed_cancel)
+        {
+        }
+
+        REQUIRE(observed_cancel);
+
+        he::exec::scheduler::instance().process();
+    }
+
     SECTION("works with a custom action_base subclass, not just he::action")
     {
         static auto custom_execute_ran{ false };

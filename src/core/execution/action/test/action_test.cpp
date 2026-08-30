@@ -241,6 +241,30 @@ TEST_CASE("action chaining")
 }
 
 
+TEST_CASE("action abort")
+{
+    SECTION("harmless after completion")
+    {
+        auto ran{ false };
+
+        auto root{ he::action{ [&ran] (const he::action::context&)
+        {
+            ran = true;
+            return true;
+        } } };
+
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(root.translate_into_graph(graph->root()).begin);
+
+        REQUIRE(ran);
+
+        root.abort();
+
+        REQUIRE(root.get_state() == he::action::state::aborted);
+    }
+}
+
+
 TEST_CASE("action default leaf")
 {
     SECTION("constructible from callable")

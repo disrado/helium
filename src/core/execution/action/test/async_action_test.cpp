@@ -1,8 +1,11 @@
 #include "core/execution/action/async_action.hpp"
+#include "core/execution/run.hpp"
+#include "core/execution/scheduler.hpp"
 #include "core/execution/task_graph.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <atomic>
 #include <memory>
 #include <stop_token>
 #include <tuple>
@@ -62,5 +65,48 @@ TEST_CASE("async_action")
         std::ignore = node.definition.try_execute(std::stop_token{});
 
         REQUIRE(instance.get_state() == he::async_action::state::failed);
+    }
+}
+
+
+TEST_CASE("async_action abort")
+{
+    SECTION("cancels an in-flight task")
+    {
+        auto started{ std::atomic<bool>{ false } };
+        auto observed_cancel{ std::atomic<bool>{ false } };
+
+        auto instance{
+            he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token token)
+            {
+                started = true;
+
+                while (!token.stop_requested())
+                {
+                }
+
+                observed_cancel = true;
+
+                return false;
+            } }
+        };
+
+        const auto chain{ he::run(std::move(instance)) };
+
+        chain.execute();
+
+        while (!started)
+        {
+        }
+
+        chain.abort();
+
+        while (!observed_cancel)
+        {
+        }
+
+        REQUIRE(observed_cancel);
+
+        he::exec::scheduler::instance().process();
     }
 }

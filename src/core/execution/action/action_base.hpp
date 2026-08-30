@@ -88,6 +88,9 @@ protected:
 
 private:
     delegate<bool(const context&, std::stop_token)> _definition;
+
+    std::weak_ptr<task_graph> _self_graph;
+    task_graph::node* _self_node{ nullptr };
 };
 
 

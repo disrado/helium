@@ -37,6 +37,12 @@ auto task_graph::node::children() const -> const std::vector<std::unique_ptr<nod
 }
 
 
+auto task_graph::node::owning_graph() const -> std::weak_ptr<task_graph>
+{
+    return _graph.weak_from_this();
+}
+
+
 task_graph::task_graph()
     : _root{ *this }
 {
@@ -114,7 +120,7 @@ auto task_graph::run_node(node& current) -> void
         return;
     }
 
-    scheduler::instance().post(
+    current.id = scheduler::instance().post(
         task_request{
             .mode{ current.mode },
             .definition{ current.definition },

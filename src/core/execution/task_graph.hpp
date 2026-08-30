@@ -26,11 +26,15 @@ public:
         auto parent() const -> node*;
         auto children() const -> const std::vector<std::unique_ptr<node>>&;
 
+        auto owning_graph() const -> std::weak_ptr<task_graph>;
+
     public:
         launch_policy mode{ launch_policy::sync };
         task_definition definition;
         delegate<bool()> pre_condition;
         multicast_delegate<execution_status> post_condition;
+
+        task_id id{ invalid_task_id };
 
         // opaque keep-alive: pins an owner for as long as the node exists
         std::shared_ptr<void> anchor;
