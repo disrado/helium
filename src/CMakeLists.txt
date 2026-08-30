@@ -57,6 +57,10 @@ target_link_libraries(helium PUBLIC magic_enum::magic_enum concurrentqueue::conc
 
 target_include_directories(helium PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+# helium_gdextension links this statically into a SHARED lib on Linux; without PIC, thread_local
+# vars (e.g. moodycamel's) get the local-exec TLS model, which can't relocate into a .so.
+set_target_properties(helium PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 if(WIN32)
     # CMake's default CRT resolution lands on the wrong runtime. Force the correct, config-aware value explicitly
     set_target_properties(helium PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
