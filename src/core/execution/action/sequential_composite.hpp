@@ -18,7 +18,8 @@ public:
         requires (sizeof...(action_ts) > 0) && (exec::action_like<std::decay_t<action_ts>> && ...)
     explicit sequential_composite(action_ts&&... steps);
 
-    auto build_graph(exec::task_graph::node& parent) -> exec::task_graph::node& override;
+protected:
+    auto expand_on_graph(exec::task_graph::node& parent) -> exec::task_graph::node& override;
 
 private:
     struct graph_sequence final

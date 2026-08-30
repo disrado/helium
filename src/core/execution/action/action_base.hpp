@@ -7,13 +7,14 @@
 
 #include <any>
 #include <map>
+#include <memory>
 #include <string>
 
 
 namespace he::exec
 {
 
-class basic_action
+class basic_action: public std::enable_shared_from_this<basic_action>
 {
 public:
     using context = std::map<std::string, std::any>;
@@ -43,7 +44,9 @@ public:
 
     virtual auto execute() -> void;
     virtual auto abort() -> void;
-    virtual auto build_graph(task_graph::node& parent) -> task_graph::node& = 0;
+
+    // builds the subtree and pins it alive for as long as the node exists; override expand_on_graph(), not this
+    auto translate_into_graph(task_graph::node& parent) -> task_graph::node&;
 
     auto get_state() const -> state;
     auto get_context() const -> const std::optional<context>&;
@@ -60,6 +63,8 @@ protected:
 
     auto store_and_then(std::unique_ptr<basic_action> next_action) -> void;
     auto store_or_else(std::unique_ptr<basic_action> next_action) -> void;
+
+    virtual auto expand_on_graph(task_graph::node& parent) -> task_graph::node& = 0;
 
 protected:
     state _state{ state::dormant };

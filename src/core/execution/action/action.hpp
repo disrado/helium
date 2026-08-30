@@ -13,8 +13,8 @@ public:
     using context = exec::basic_action::context;
     using action_base::action_base;
 
-public:
-    auto build_graph(exec::task_graph::node& parent) -> exec::task_graph::node& override;
+protected:
+    auto expand_on_graph(exec::task_graph::node& parent) -> exec::task_graph::node& override;
 };
 
 }

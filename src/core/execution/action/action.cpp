@@ -4,7 +4,7 @@
 namespace he
 {
 
-auto action::build_graph(exec::task_graph::node& parent) -> exec::task_graph::node&
+auto action::expand_on_graph(exec::task_graph::node& parent) -> exec::task_graph::node&
 {
     auto& self_node{ parent.add_child() };
 
@@ -13,8 +13,8 @@ auto action::build_graph(exec::task_graph::node& parent) -> exec::task_graph::no
     self_node.post_condition.bind(
         [
             this,
-            then_child{ _then_action ? &_then_action->build_graph(self_node) : nullptr },
-            else_child{ _else_action ? &_else_action->build_graph(self_node) : nullptr }
+            then_child{ _then_action ? &_then_action->translate_into_graph(self_node) : nullptr },
+            else_child{ _else_action ? &_else_action->translate_into_graph(self_node) : nullptr }
         ]
         {
             if (get_state() == state::succeeded && then_child)

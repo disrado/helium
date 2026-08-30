@@ -30,6 +30,20 @@ auto basic_action::execute() -> void
 }
 
 
+auto basic_action::translate_into_graph(task_graph::node& parent) -> task_graph::node&
+{
+    auto& node{ expand_on_graph(parent) };
+
+    // only pins if shared_ptr-owned; a stack-local action (e.g. in a sync test) has nothing to pin
+    if (auto self{ weak_from_this().lock() })
+    {
+        node.anchor = std::move(self);
+    }
+
+    return node;
+}
+
+
 auto basic_action::abort() -> void
 {
     _definition = {};

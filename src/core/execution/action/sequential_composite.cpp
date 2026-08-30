@@ -4,7 +4,7 @@
 namespace he
 {
 
-auto sequential_composite::build_graph(exec::task_graph::node& parent) -> exec::task_graph::node&
+auto sequential_composite::expand_on_graph(exec::task_graph::node& parent) -> exec::task_graph::node&
 {
     auto& self_node{ parent.add_child() };
 
@@ -36,7 +36,7 @@ auto sequential_composite::setup_sequence(exec::task_graph::node& self_node) -> 
 
     for (auto& step: _steps)
     {
-        auto& step_entry{ step->build_graph(self_node) };
+        auto& step_entry{ step->translate_into_graph(self_node) };
 
         if (!sequence.first)
         {
@@ -47,9 +47,8 @@ auto sequential_composite::setup_sequence(exec::task_graph::node& self_node) -> 
         {
             auto* previous_step{ sequence.last_action };
 
-            // keyed on the step's own state, not its node's post_condition: a composite step's node
-            // fires post_condition immediately on activation (that's just its internal kickoff), while
-            // its state only becomes succeeded/failed once its whole internal chain truly finishes
+            // keyed on state, not post_condition: a composite's node fires post_condition on
+            // activation (just its kickoff), state only becomes succeeded/failed once truly done
             previous_step->on(
                 state::succeeded,
                 [previous_step, current_step{ step.get() }, &step_entry]
@@ -76,8 +75,8 @@ auto sequential_composite::setup_completion(exec::task_graph::node& self_node, c
 
     auto* last_step{ sequence.last_action };
 
-    auto* then_child{ _then_action ? &_then_action->build_graph(self_node) : nullptr };
-    auto* else_child{ _else_action ? &_else_action->build_graph(self_node) : nullptr };
+    auto* then_child{ _then_action ? &_then_action->translate_into_graph(self_node) : nullptr };
+    auto* else_child{ _else_action ? &_else_action->translate_into_graph(self_node) : nullptr };
 
     last_step->on(
         state::succeeded,

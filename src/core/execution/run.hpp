@@ -18,11 +18,11 @@ public:
     auto abort() const -> void;
 
 private:
-    std::unique_ptr<exec::basic_action> _target;
+    std::shared_ptr<exec::basic_action> _target;
 };
 
 run::run(exec::action_like auto target)
-    : _target{ std::make_unique<decltype(target)>(std::move(target)) }
+    : _target{ std::make_shared<decltype(target)>(std::move(target)) }
 {
 }
 
