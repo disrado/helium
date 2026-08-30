@@ -184,6 +184,22 @@ TEST_CASE("delegate execution")
         REQUIRE(counter == 3);
     }
 
+    SECTION("supports mutable callable")
+    {
+        auto seen{ 0 };
+
+        const auto delegate{ he::delegate{ [count{ 0 }, &seen] () mutable { seen = ++count; } } };
+
+        delegate.execute();
+        REQUIRE(seen == 1);
+
+        delegate.execute();
+        REQUIRE(seen == 2);
+
+        delegate.execute();
+        REQUIRE(seen == 3);
+    }
+
     SECTION("execution with non-related owner")
     {
         struct owner final
@@ -471,6 +487,15 @@ TEST_CASE("delegate with return value execution")
         auto counter{ 0 };
 
         const auto delegate{ he::delegate{ [&counter] { return ++counter; } } };
+
+        REQUIRE(delegate.execute() == 1);
+        REQUIRE(delegate.execute() == 2);
+        REQUIRE(delegate.execute() == 3);
+    }
+
+    SECTION("supports mutable callable")
+    {
+        auto delegate{ he::delegate<int()>{ [count{ 0 }] () mutable { return ++count; } } };
 
         REQUIRE(delegate.execute() == 1);
         REQUIRE(delegate.execute() == 2);

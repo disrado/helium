@@ -255,6 +255,24 @@ TEST_CASE("multicast_delegate execution")
         REQUIRE(counter == 1);
     }
 
+    SECTION("supports mutable callable")
+    {
+        auto delegate{ he::multicast_delegate{} };
+
+        auto seen{ 0 };
+
+        delegate.bind([count{ 0 }, &seen] () mutable { seen = ++count; });
+
+        delegate.execute();
+        REQUIRE(seen == 1);
+
+        delegate.execute();
+        REQUIRE(seen == 2);
+
+        delegate.execute();
+        REQUIRE(seen == 3);
+    }
+
     SECTION("bind order preserved during execution")
     {
         auto delegate{ he::multicast_delegate{} };

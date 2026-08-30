@@ -82,7 +82,7 @@ template <typename callable_t>
     requires delegates::bindable<callable_t, arg_ts...>
 auto delegate<void(arg_ts...)>::bind(callable_t&& callback) -> void
 {
-    _callback = [callback{ std::forward<decltype(callback)>(callback) }] (arg_ts... args)
+    _callback = [callback{ std::forward<decltype(callback)>(callback) }] (arg_ts... args) mutable
     {
         std::invoke(callback, std::forward<arg_ts>(args)...);
 
@@ -96,7 +96,7 @@ template <typename lifetime_owner_t, typename callable_t>
     requires delegates::lifetime_bound_bindable<callable_t, arg_ts...>
 auto delegate<void(arg_ts...)>::bind(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback) -> void
 {
-    _callback = [owner, callback{ std::forward<decltype(callback)>(callback) }] (arg_ts&&... args)
+    _callback = [owner, callback{ std::forward<decltype(callback)>(callback) }] (arg_ts&&... args) mutable
     {
         if (auto locked_owner{ owner.lock() })
         {
@@ -258,7 +258,7 @@ template <typename callable_t>
     requires delegates::rbindable<return_t, callable_t, arg_ts...>
 auto delegate<return_t(arg_ts...)>::bind(callable_t&& callback) -> void
 {
-    _callback = [callback{ std::forward<decltype(callback)>(callback) }] (arg_ts... args)
+    _callback = [callback{ std::forward<decltype(callback)>(callback) }] (arg_ts... args) mutable
     {
         return std::invoke_r<return_t>(callback, std::forward<arg_ts>(args)...);
     };
@@ -270,7 +270,7 @@ template <typename lifetime_owner_t, typename callable_t>
     requires delegates::lifetime_bound_rbindable<return_t, callable_t, arg_ts...>
 auto delegate<return_t(arg_ts...)>::bind(std::weak_ptr<lifetime_owner_t> owner, callable_t&& callback) -> void
 {
-    _callback = [owner, callback{ std::forward<decltype(callback)>(callback) }] (arg_ts&&... args) -> std::optional<return_t>
+    _callback = [owner, callback{ std::forward<decltype(callback)>(callback) }] (arg_ts&&... args) mutable -> std::optional<return_t>
     {
         if (auto locked_owner{ owner.lock() })
         {
