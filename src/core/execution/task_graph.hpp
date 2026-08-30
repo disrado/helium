@@ -49,6 +49,8 @@ public:
 
 private:
     auto advance() -> void;
+    auto pop_next() -> node*;
+    auto run_node(node& current) -> void;
 
 private:
     node _root;

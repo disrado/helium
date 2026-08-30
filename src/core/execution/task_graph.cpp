@@ -63,56 +63,69 @@ auto task_graph::activate(node& target) -> void
 
 auto task_graph::advance() -> void
 {
-    auto lock{ std::unique_lock{ _mutex } };
+    {
+        const auto _{ std::lock_guard{ _mutex } };
 
-    if (_running)
+        if (_running)
+        {
+            return;
+        }
+
+        _running = true;
+    }
+
+    while (auto* const current{ pop_next() })
+    {
+        run_node(*current);
+    }
+}
+
+
+auto task_graph::pop_next() -> node*
+{
+    const auto _{ std::lock_guard{ _mutex } };
+
+    if (_stack.empty())
+    {
+        _running = false;
+
+        return nullptr;
+    }
+
+    auto* const current{ _stack.back() };
+
+    _stack.pop_back();
+
+    return current;
+}
+
+
+auto task_graph::run_node(node& current) -> void
+{
+    if (!current.pre_condition.try_execute().value_or(true))
     {
         return;
     }
 
-    _running = true;
-
-    while (!_stack.empty())
+    if (!current.definition.is_bound())
     {
-        auto* current{ _stack.back() };
-        _stack.pop_back();
+        std::ignore = current.post_condition.execute();
 
-        // unlocked while running: may re-enter activate()/advance(), same thread or another
-        lock.unlock();
-
-        if (!current->pre_condition.try_execute().value_or(true))
-        {
-            lock.lock();
-
-            continue;
-        }
-
-        if (!current->definition.is_bound())
-        {
-            std::ignore = current->post_condition.execute();
-
-            lock.lock();
-
-            continue;
-        }
-
-        scheduler::instance().post(
-            task_request{
-                .mode{ current->mode },
-                .definition{ current->definition },
-                .on_complete{
-                    [self{ shared_from_this() }, current] (execution_status)
-                    {
-                        std::ignore = current->post_condition.execute();
-
-                        self->advance();
-                    } }
-            });
-
-        lock.lock();
+        return;
     }
 
-    _running = false;
+    scheduler::instance().post(
+        task_request{
+            .mode{ current.mode },
+            .definition{ current.definition },
+            .on_complete{
+                [self{ shared_from_this() }, current{ &current }] (execution_status)
+                {
+                    std::ignore = current->post_condition.execute();
+
+                    self->advance();
+                } }
+        });
 }
 
 }
