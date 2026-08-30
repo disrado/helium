@@ -55,6 +55,11 @@ auto parallel_composite::setup_join(
         entries[i].end.post_condition.bind(
             [this, current_step, &join_node, then_child, else_child] (exec::execution_status)
             {
+                if (get_state() == state::aborted)
+                {
+                    return;
+                }
+
                 if (current_step->get_state() != state::succeeded)
                 {
                     _any_failed = true;

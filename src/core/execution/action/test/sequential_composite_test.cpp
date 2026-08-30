@@ -7,7 +7,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <atomic>
+#include <chrono>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <thread>
 
@@ -372,7 +374,7 @@ TEST_CASE("sequential_composite thread marshaling")
 
 TEST_CASE("sequential_composite abort")
 {
-    SECTION("does not cascade to steps")
+    SECTION("cascades to every step")
     {
         auto step_aborted{ false };
 
@@ -386,6 +388,112 @@ TEST_CASE("sequential_composite abort")
 
         chain.abort();
 
-        REQUIRE_FALSE(step_aborted);
+        REQUIRE(step_aborted);
+    }
+
+    SECTION("cascades to an in-flight step")
+    {
+        auto started{ std::atomic<bool>{ false } };
+        auto observed_cancel{ std::atomic<bool>{ false } };
+
+        auto composite{
+            he::sequential_composite{
+                he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token token)
+                {
+                    started = true;
+
+                    while (!token.stop_requested())
+                    {
+                    }
+
+                    observed_cancel = true;
+
+                    return false;
+                } }
+            }
+        };
+
+        const auto chain{ he::run(std::move(composite)) };
+
+        chain.execute();
+
+        while (!started)
+        {
+        }
+
+        chain.abort();
+
+        while (!observed_cancel)
+        {
+        }
+
+        REQUIRE(observed_cancel);
+
+        he::exec::scheduler::instance().process();
+    }
+
+    SECTION("mid-flight abort with then/otherwise does not crash or clobber state")
+    {
+        auto started{ std::atomic<bool>{ false } };
+        auto worker_done{ std::atomic<bool>{ false } };
+        auto then_ran{ false };
+        auto otherwise_ran{ false };
+        auto clobbered{ false };
+
+        auto composite{
+            he::sequential_composite{
+                he::async_action{ [&started, &worker_done] (const he::async_action::context&, std::stop_token token)
+                {
+                    started = true;
+
+                    while (!token.stop_requested())
+                    {
+                    }
+
+                    worker_done = true;
+
+                    return false;
+                } }
+            }
+        };
+
+        composite.on(he::action::state::failed, [&clobbered] { clobbered = true; });
+
+        const auto chain{
+            he::run(
+                composite
+                    .then(
+                        he::action{ [&then_ran] (const he::action::context&)
+                        {
+                            then_ran = true;
+                            return true;
+                        } })
+                    .otherwise(
+                        he::action{ [&otherwise_ran] (const he::action::context&)
+                        {
+                            otherwise_ran = true;
+                            return true;
+                        } }))
+        };
+
+        chain.execute();
+
+        while (!started)
+        {
+        }
+
+        chain.abort();
+
+        while (!worker_done)
+        {
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+        he::exec::scheduler::instance().process();
+
+        REQUIRE_FALSE(then_ran);
+        REQUIRE_FALSE(otherwise_ran);
+        REQUIRE_FALSE(clobbered);
     }
 }

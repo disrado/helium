@@ -4,6 +4,17 @@
 namespace he
 {
 
+auto sequential_composite::abort() -> void
+{
+    for (auto& step: _steps)
+    {
+        step->abort();
+    }
+
+    basic_action::abort();
+}
+
+
 auto sequential_composite::expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segment
 {
     auto& self_node{ parent.add_child() };
@@ -52,6 +63,11 @@ auto sequential_composite::setup_sequence(
             [this, current_step, next_begin, next_step, then_child, else_child]
             (exec::execution_status)
             {
+                if (get_state() == state::aborted)
+                {
+                    return;
+                }
+
                 if (current_step->get_state() == state::succeeded)
                 {
                     if (next_begin)
