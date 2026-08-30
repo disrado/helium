@@ -18,14 +18,19 @@ scheduler::~scheduler()
         }
     }
 
-    auto lock{ std::unique_lock{ _shutdown_mutex } };
+    {
+        auto lock{ std::unique_lock{ _shutdown_mutex } };
 
-    // give outstanding async work a short chance to notice the cancellation and finish,
-    // rather than blocking shutdown indefinitely if something never does
-    _shutdown_cv.wait_for(
-        lock,
-        std::chrono::seconds{ 1 },
-        [this] { return _outstanding_async.load(std::memory_order_acquire) == 0; });
+        // give outstanding async work a short chance to notice the cancellation and finish,
+        // rather than blocking shutdown indefinitely if something never does
+        _shutdown_cv.wait_for(
+            lock,
+            std::chrono::seconds{ 1 },
+            [this] { return _outstanding_async.load(std::memory_order_acquire) == 0; });
+    }
+
+    // deliver whatever's already sitting in _queue instead of dropping it silently on destruction
+    process();
 }
 
 

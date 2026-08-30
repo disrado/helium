@@ -559,3 +559,28 @@ TEST_CASE("scheduler cancel")
         REQUIRE(on_complete_status == he::exec::execution_status::cancelled);
     }
 }
+
+
+TEST_CASE("scheduler shutdown")
+{
+    SECTION("delivers completion on destruction")
+    {
+        auto on_complete_ran{ false };
+
+        {
+            auto instance{ he::exec::scheduler{} };
+            instance.set_dispatcher(std::make_unique<recording_dispatcher>());
+
+            instance.post(
+                he::exec::task_request{
+                    .mode{ he::exec::launch_policy::async },
+                    .definition{ [] (std::stop_token) {} },
+                    .on_complete{ [&on_complete_ran] (he::exec::execution_status) { on_complete_ran = true; } }
+                });
+
+            // deliberately no instance.process() call — relying purely on ~scheduler() to deliver it
+        }
+
+        REQUIRE(on_complete_ran);
+    }
+}
