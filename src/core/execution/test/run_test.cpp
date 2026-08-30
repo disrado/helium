@@ -1,11 +1,16 @@
 #include "core/execution/action/action.hpp"
 #include "core/execution/action/async_action.hpp"
+#include "core/execution/action/sequential_composite.hpp"
 #include "core/execution/run.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <string>
+#include <tuple>
+#include <utility>
 
 
 TEST_CASE("run")
@@ -106,5 +111,72 @@ TEST_CASE("run")
         cv.wait(lock, [&] { return done; });
 
         REQUIRE(done);
+    }
+}
+
+
+TEST_CASE("run example")
+{
+    SECTION("nested composites, branching, propagated context")
+    {
+        class plain_action final: public he::action
+        {
+        public:
+            auto execute() -> void override
+            {
+                succeed();
+            }
+        };
+
+        class label_reader_action final: public he::action
+        {
+        public:
+            auto execute() -> void override
+            {
+                std::ignore = std::any_cast<std::string>(get_context().value().at("label"));
+
+                fail();
+            }
+        };
+
+        auto done{ std::atomic<bool>{ false } };
+
+        auto initial_context{ he::action::context{ { "label", std::string{ "run" } } } };
+
+        const auto chain{ he::run(
+            he::sequential_composite{
+                he::action{ [] (const auto&) { return true; }, initial_context }
+                    .then(he::action{ [] (const auto&) { return true; } }),
+                he::async_action{ [] (const he::async_action::context&) { return true; } }
+                    .then(he::sequential_composite{
+                        he::async_action{ [] (const he::async_action::context&) { return true; } },
+                        he::async_action{ [] (const he::async_action::context&) { return true; } }
+                            .then(plain_action{})
+                            .otherwise(label_reader_action{}),
+                        plain_action{},
+                        he::async_action{ [] (const he::async_action::context&) { return true; } },
+                        plain_action{}
+                    }),
+                label_reader_action{}
+            }
+            .then(
+                he::action{ [&] (const auto&)
+                {
+                    done = true;
+                    return true;
+                } })
+            .otherwise(
+                he::action{ [&] (const auto&)
+                {
+                    done = true;
+                    return true;
+                } }))
+        };
+
+        chain.execute();
+
+        while (!done)
+        {
+        }
     }
 }
