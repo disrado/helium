@@ -25,7 +25,6 @@ private:
     {
     public:
         exec::task_graph::node* first{ nullptr };
-        exec::task_graph::node* last{ nullptr };
         basic_action* last_action{ nullptr };
     };
 
