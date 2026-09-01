@@ -60,15 +60,6 @@ TEST_CASE("basic_action construction")
         REQUIRE(moved.get_state() == he::action::state::dormant);
     }
 
-    SECTION("move assignment")
-    {
-        auto original{ he::action{ [] (const he::action::context&) { return true; } } };
-        auto target{ he::action{} };
-
-        target = std::move(original);
-
-        REQUIRE(target.get_state() == he::action::state::dormant);
-    }
 }
 
 
@@ -125,31 +116,31 @@ TEST_CASE("basic_action execution")
 }
 
 
-TEST_CASE("basic_action abort")
+TEST_CASE("basic_action cancel")
 {
-    SECTION("sets aborted state")
+    SECTION("sets cancelled state")
     {
         auto instance{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        instance.abort();
+        instance.cancel();
 
-        REQUIRE(instance.get_state() == he::action::state::aborted);
+        REQUIRE(instance.get_state() == he::action::state::cancelled);
     }
 
-    SECTION("fires aborted listeners")
+    SECTION("fires cancelled listeners")
     {
         auto fired{ false };
 
         auto instance{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        instance.on(he::action::state::aborted, [&fired] { fired = true; });
+        instance.on(he::action::state::cancelled, [&fired] { fired = true; });
 
-        instance.abort();
+        instance.cancel();
 
         REQUIRE(fired);
     }
 
-    SECTION("clears branches so they don't run afterward")
+    SECTION("does not drive branches on a direct execute() afterward")
     {
         auto then_ran{ false };
 
@@ -162,7 +153,7 @@ TEST_CASE("basic_action abort")
                 return true;
             } });
 
-        root.abort();
+        root.cancel();
         root.execute();
 
         REQUIRE_FALSE(then_ran);

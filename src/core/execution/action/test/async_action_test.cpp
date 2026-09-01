@@ -69,7 +69,7 @@ TEST_CASE("async_action")
 }
 
 
-TEST_CASE("async_action abort")
+TEST_CASE("async_action cancel")
 {
     SECTION("cancels an in-flight task")
     {
@@ -91,7 +91,7 @@ TEST_CASE("async_action abort")
             } }
         };
 
-        const auto chain{ he::run(std::move(instance)) };
+        auto chain{ he::run(std::move(instance)) };
 
         chain.execute();
 
@@ -99,7 +99,7 @@ TEST_CASE("async_action abort")
         {
         }
 
-        chain.abort();
+        chain.cancel();
 
         while (!observed_cancel)
         {

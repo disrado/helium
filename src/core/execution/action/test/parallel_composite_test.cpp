@@ -30,7 +30,7 @@ TEST_CASE("parallel_composite")
 
         composite.on(he::action::state::succeeded, [&succeeded] { succeeded = true; });
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
         chain.execute();
 
@@ -61,7 +61,7 @@ TEST_CASE("parallel_composite")
 
         composite.on(he::action::state::failed, [&failed] { failed = true; });
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
         chain.execute();
 
@@ -74,7 +74,7 @@ TEST_CASE("parallel_composite")
     {
         auto run_count{ 0 };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::parallel_composite{
                     he::action{ [&run_count] (const he::action::context&)
@@ -105,7 +105,7 @@ TEST_CASE("parallel_composite nesting")
         auto inner_second_ran{ false };
         auto outer_done{ false };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::parallel_composite{
@@ -138,7 +138,7 @@ TEST_CASE("parallel_composite chaining")
     {
         auto then_ran{ false };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::parallel_composite{
                     he::action{ [] (const he::action::context&) { return true; } },
@@ -161,7 +161,7 @@ TEST_CASE("parallel_composite chaining")
     {
         auto otherwise_ran{ false };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::parallel_composite{
                     he::action{ [] (const he::action::context&) { return true; } },
@@ -187,7 +187,7 @@ TEST_CASE("parallel_composite chaining")
         auto first_context{ he::action::context{ { "first", std::string{ "a" } } } };
         auto second_context{ he::action::context{ { "second", std::string{ "b" } } } };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::parallel_composite{
                     he::action{ [] (const he::action::context&) { return true; }, first_context },
@@ -214,7 +214,7 @@ TEST_CASE("parallel_composite chaining")
         auto first_context{ he::action::context{ { "key", std::string{ "first" } } } };
         auto second_context{ he::action::context{ { "key", std::string{ "second" } } } };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::parallel_composite{
                     he::action{ [] (const he::action::context&) { return true; }, first_context },
@@ -243,7 +243,7 @@ TEST_CASE("parallel_composite with async step")
         auto async_ran{ std::atomic<bool>{ false } };
         auto succeeded{ std::atomic<bool>{ false } };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::parallel_composite{
                     he::action{ [&sync_ran] (const he::action::context&)
@@ -278,44 +278,44 @@ TEST_CASE("parallel_composite with async step")
 }
 
 
-TEST_CASE("parallel_composite abort")
+TEST_CASE("parallel_composite cancel")
 {
     SECTION("cascades to every step")
     {
         auto first{ he::action{ [] (const he::action::context&) { return true; } } };
         auto second{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        auto first_aborted{ false };
-        auto second_aborted{ false };
+        auto first_cancelled{ false };
+        auto second_cancelled{ false };
 
-        first.on(he::action::state::aborted, [&first_aborted] { first_aborted = true; });
-        second.on(he::action::state::aborted, [&second_aborted] { second_aborted = true; });
+        first.on(he::action::state::cancelled, [&first_cancelled] { first_cancelled = true; });
+        second.on(he::action::state::cancelled, [&second_cancelled] { second_cancelled = true; });
 
         auto composite{ he::parallel_composite{ std::move(first), std::move(second) } };
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
-        chain.abort();
+        chain.cancel();
 
-        REQUIRE(first_aborted);
-        REQUIRE(second_aborted);
+        REQUIRE(first_cancelled);
+        REQUIRE(second_cancelled);
     }
 
     SECTION("cascades to untranslated steps")
     {
-        auto first_aborted{ false };
+        auto first_cancelled{ false };
 
         auto first{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        first.on(he::action::state::aborted, [&first_aborted] { first_aborted = true; });
+        first.on(he::action::state::cancelled, [&first_cancelled] { first_cancelled = true; });
 
         auto composite{ he::parallel_composite{ std::move(first) } };
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
-        chain.abort();
+        chain.cancel();
 
-        REQUIRE(first_aborted);
+        REQUIRE(first_cancelled);
     }
 
     SECTION("cascades to an in-flight step")
@@ -341,7 +341,7 @@ TEST_CASE("parallel_composite abort")
             }
         };
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
         chain.execute();
 
@@ -349,7 +349,7 @@ TEST_CASE("parallel_composite abort")
         {
         }
 
-        chain.abort();
+        chain.cancel();
 
         while (!observed_cancel)
         {
@@ -360,7 +360,7 @@ TEST_CASE("parallel_composite abort")
         he::exec::scheduler::instance().process();
     }
 
-    SECTION("mid-flight abort with then/otherwise does not crash or clobber state")
+    SECTION("mid-flight cancel with then/otherwise does not crash or clobber state")
     {
         auto started{ std::atomic<bool>{ false } };
         auto worker_done{ std::atomic<bool>{ false } };
@@ -387,7 +387,7 @@ TEST_CASE("parallel_composite abort")
 
         composite.on(he::action::state::failed, [&clobbered] { clobbered = true; });
 
-        const auto chain{
+        auto chain{
             he::run(
                 composite
                     .then(
@@ -410,7 +410,7 @@ TEST_CASE("parallel_composite abort")
         {
         }
 
-        chain.abort();
+        chain.cancel();
 
         while (!worker_done)
         {

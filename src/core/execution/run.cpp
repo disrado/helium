@@ -1,21 +1,19 @@
 #include "run.hpp"
 
-#include "core/execution/task_graph.hpp"
-
 
 namespace he
 {
 
-auto run::execute() const -> void
+auto run::execute() -> void
 {
-    auto graph{ std::make_shared<exec::task_graph>() };
+    _graph = std::make_shared<exec::task_graph>();
 
-    graph->activate(_target->translate_into_graph(graph->root()).begin);
+    _graph->activate(_target->translate_into_graph(_graph->root()).begin);
 }
 
-auto run::abort() const -> void
+auto run::cancel() const -> void
 {
-    _target->abort();
+    _target->cancel();
 }
 
 }

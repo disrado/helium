@@ -34,7 +34,7 @@ public:
         running,
         succeeded,
         failed,
-        aborted
+        cancelled
     };
 
 public:
@@ -54,13 +54,14 @@ public:
     virtual ~basic_action() noexcept = 0;
 
     virtual auto execute(std::stop_token token = {}) -> void;
-    virtual auto abort() -> void;
+    virtual auto cancel() -> void = 0;
 
     auto translate_into_graph(task_graph::node& parent) -> graph_segment;
 
-    auto get_state() const -> state;
-    auto get_context() const -> const std::optional<context>&;
     auto set_context(std::optional<context> new_context) -> void;
+    auto get_context() const -> const std::optional<context>&;
+
+    auto get_state() const -> state;
 
     template <typename t>
     auto on(state target_state, t&& delegate) -> basic_action&;
@@ -79,6 +80,8 @@ protected:
 protected:
     state _state{ state::dormant };
 
+    bool _cancel_requested{ false };
+
     std::optional<context> _context;
 
     std::unique_ptr<basic_action> _then_action;
@@ -88,9 +91,6 @@ protected:
 
 private:
     delegate<bool(const context&, std::stop_token)> _definition;
-
-    std::weak_ptr<task_graph> _self_graph;
-    task_graph::node* _self_node{ nullptr };
 };
 
 

@@ -6,14 +6,14 @@
 namespace he
 {
 
-auto parallel_composite::abort() -> void
+auto parallel_composite::cancel() -> void
 {
+    _cancel_requested = true;
+
     for (auto& step: _steps)
     {
-        step->abort();
+        step->cancel();
     }
-
-    basic_action::abort();
 }
 
 
@@ -55,17 +55,28 @@ auto parallel_composite::setup_join(
         entries[i].end.post_condition.bind(
             [this, current_step, &join_node, then_child, else_child] (exec::execution_status)
             {
-                if (get_state() == state::aborted)
+                if (get_state() == state::cancelled)
                 {
                     return;
                 }
 
-                if (current_step->get_state() != state::succeeded)
+                if (!_cancel_requested && current_step->get_state() != state::succeeded)
                 {
                     _any_failed = true;
                 }
 
-                if (--_pending == 0)
+                if (--_pending != 0)
+                {
+                    return;
+                }
+
+                if (_cancel_requested)
+                {
+                    set_state(state::cancelled);
+
+                    std::ignore = join_node.post_condition.execute(exec::execution_status::completed);
+                }
+                else
                 {
                     resolve(join_node, then_child, else_child);
                 }
@@ -73,8 +84,17 @@ auto parallel_composite::setup_join(
     }
 
     self_node.post_condition.bind(
-        [this, entries] (exec::execution_status)
+        [this, entries, &join_node] (exec::execution_status)
         {
+            if (_cancel_requested)
+            {
+                set_state(state::cancelled);
+
+                std::ignore = join_node.post_condition.execute(exec::execution_status::completed);
+
+                return;
+            }
+
             for (std::size_t i{ 0 }; i < _steps.size(); ++i)
             {
                 if (get_context().has_value())

@@ -20,7 +20,7 @@ TEST_CASE("sequential_composite")
     {
         auto order{ std::string{} };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::action{ [&order] (const he::action::context&)
@@ -50,7 +50,7 @@ TEST_CASE("sequential_composite")
     {
         auto third_ran{ false };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return true; } },
@@ -82,7 +82,7 @@ TEST_CASE("sequential_composite")
 
         composite.on(he::action::state::failed, [&failed] { failed = true; });
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
         chain.execute();
 
@@ -95,7 +95,7 @@ TEST_CASE("sequential_composite")
 
         auto initial_context{ he::action::context{ { "label", std::string{ "run" } } } };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return true; }, initial_context },
@@ -123,7 +123,7 @@ TEST_CASE("sequential_composite")
 
         auto initial_context{ he::action::context{ { "label", std::string{ "run" } } } };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return true; }, initial_context },
@@ -160,7 +160,7 @@ TEST_CASE("sequential_composite")
 
         composite.on(he::action::state::succeeded, [&succeeded] { succeeded = true; });
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
         chain.execute();
 
@@ -180,7 +180,7 @@ TEST_CASE("sequential_composite")
 
         composite.on(he::action::state::failed, [&failed] { failed = true; });
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
         chain.execute();
 
@@ -195,7 +195,7 @@ TEST_CASE("sequential_composite chaining")
     {
         auto then_ran{ false };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return true; } }
@@ -217,7 +217,7 @@ TEST_CASE("sequential_composite chaining")
     {
         auto otherwise_ran{ false };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return false; } }
@@ -239,7 +239,7 @@ TEST_CASE("sequential_composite chaining")
     {
         auto otherwise_ran{ false };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return true; } },
@@ -265,7 +265,7 @@ TEST_CASE("sequential_composite chaining")
 
         auto initial_context{ he::action::context{ { "label", std::string{ "run" } } } };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return true; }, initial_context }
@@ -297,7 +297,7 @@ TEST_CASE("sequential_composite with async step")
         auto order{ std::string{} };
         auto done{ std::atomic<bool>{ false } };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::async_action{ [&order] (const he::async_action::context&)
@@ -334,7 +334,7 @@ TEST_CASE("sequential_composite thread marshaling")
         auto continuation_thread_id{ std::optional<std::thread::id>{} };
         auto continuation_ran{ false };
 
-        const auto chain{
+        auto chain{
             he::run(
                 he::sequential_composite{
                     he::sequential_composite{
@@ -372,23 +372,23 @@ TEST_CASE("sequential_composite thread marshaling")
 }
 
 
-TEST_CASE("sequential_composite abort")
+TEST_CASE("sequential_composite cancel")
 {
     SECTION("cascades to every step")
     {
-        auto step_aborted{ false };
+        auto step_cancelled{ false };
 
         auto step{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        step.on(he::action::state::aborted, [&step_aborted] { step_aborted = true; });
+        step.on(he::action::state::cancelled, [&step_cancelled] { step_cancelled = true; });
 
         auto composite{ he::sequential_composite{ std::move(step) } };
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
-        chain.abort();
+        chain.cancel();
 
-        REQUIRE(step_aborted);
+        REQUIRE(step_cancelled);
     }
 
     SECTION("cascades to an in-flight step")
@@ -413,7 +413,7 @@ TEST_CASE("sequential_composite abort")
             }
         };
 
-        const auto chain{ he::run(std::move(composite)) };
+        auto chain{ he::run(std::move(composite)) };
 
         chain.execute();
 
@@ -421,7 +421,7 @@ TEST_CASE("sequential_composite abort")
         {
         }
 
-        chain.abort();
+        chain.cancel();
 
         while (!observed_cancel)
         {
@@ -432,7 +432,7 @@ TEST_CASE("sequential_composite abort")
         he::exec::scheduler::instance().process();
     }
 
-    SECTION("mid-flight abort with then/otherwise does not crash or clobber state")
+    SECTION("mid-flight cancel with then/otherwise does not crash or clobber state")
     {
         auto started{ std::atomic<bool>{ false } };
         auto worker_done{ std::atomic<bool>{ false } };
@@ -459,7 +459,7 @@ TEST_CASE("sequential_composite abort")
 
         composite.on(he::action::state::failed, [&clobbered] { clobbered = true; });
 
-        const auto chain{
+        auto chain{
             he::run(
                 composite
                     .then(
@@ -482,7 +482,7 @@ TEST_CASE("sequential_composite abort")
         {
         }
 
-        chain.abort();
+        chain.cancel();
 
         while (!worker_done)
         {

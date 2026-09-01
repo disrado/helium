@@ -1,5 +1,7 @@
 #include "action.hpp"
 
+#include "core/execution/scheduler.hpp"
+
 
 namespace he
 {
@@ -16,11 +18,13 @@ auto action::expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segm
             then_child{ _then_action ? &_then_action->translate_into_graph(self_node).begin : nullptr },
             else_child{ _else_action ? &_else_action->translate_into_graph(self_node).begin : nullptr }
         ]
-        (exec::execution_status status)
+        (exec::execution_status)
         {
-            if (status == exec::execution_status::cancelled && get_state() == state::dormant)
+            if (_cancel_requested)
             {
-                fail();
+                set_state(state::cancelled);
+
+                return;
             }
 
             if (get_state() == state::succeeded && then_child)
@@ -37,7 +41,24 @@ auto action::expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segm
             }
         });
 
+    _graph_segment.emplace(exec::graph_segment{ .begin{ self_node }, .end{ self_node } });
+
     return exec::graph_segment{ .begin{ self_node }, .end{ self_node } };
+}
+
+
+auto action::cancel() -> void
+{
+    _cancel_requested = true;
+
+    if (_graph_segment.has_value() && _graph_segment.value().begin.id != exec::invalid_task_id)
+    {
+        exec::scheduler::instance().cancel(_graph_segment.value().begin.id);
+
+        return;
+    }
+
+    set_state(state::cancelled);
 }
 
 }

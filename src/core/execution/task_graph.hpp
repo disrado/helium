@@ -26,8 +26,6 @@ public:
         auto parent() const -> node*;
         auto children() const -> const std::vector<std::unique_ptr<node>>&;
 
-        auto owning_graph() const -> std::weak_ptr<task_graph>;
-
     public:
         launch_policy mode{ launch_policy::sync };
         task_definition definition;

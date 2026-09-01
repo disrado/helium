@@ -1,5 +1,7 @@
 #include "async_action.hpp"
 
+#include "core/execution/scheduler.hpp"
+
 
 namespace he
 {
@@ -16,11 +18,13 @@ auto async_action::expand_on_graph(exec::task_graph::node& parent) -> exec::grap
 
     self_node.post_condition.bind(
         [this, then_child, else_child]
-        (exec::execution_status status)
+        (exec::execution_status)
         {
-            if (status == exec::execution_status::cancelled && _state == state::dormant)
+            if (_cancel_requested)
             {
-                fail();
+                set_state(state::cancelled);
+
+                return;
             }
 
             if (_state == state::succeeded && then_child)
@@ -38,7 +42,24 @@ auto async_action::expand_on_graph(exec::task_graph::node& parent) -> exec::grap
             }
         });
 
+    _graph_segment.emplace(exec::graph_segment{ .begin{ self_node }, .end{ self_node } });
+
     return exec::graph_segment{ .begin{ self_node }, .end{ self_node } };
+}
+
+
+auto async_action::cancel() -> void
+{
+    _cancel_requested = true;
+
+    if (_graph_segment.has_value() && _graph_segment.value().begin.id != exec::invalid_task_id)
+    {
+        exec::scheduler::instance().cancel(_graph_segment.value().begin.id);
+
+        return;
+    }
+
+    set_state(state::cancelled);
 }
 
 }

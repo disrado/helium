@@ -4,30 +4,40 @@
 namespace he
 {
 
-auto sequential_composite::abort() -> void
+auto sequential_composite::cancel() -> void
 {
+    _cancel_requested = true;
+
     for (auto& step: _steps)
     {
-        step->abort();
+        step->cancel();
     }
-
-    basic_action::abort();
 }
 
 
 auto sequential_composite::expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segment
 {
     auto& self_node{ parent.add_child() };
+    auto& completion_node{ self_node.add_child() };
 
     auto* const then_child{ _then_action ? &_then_action->translate_into_graph(self_node).begin : nullptr };
     auto* const else_child{ _else_action ? &_else_action->translate_into_graph(self_node).begin : nullptr };
 
-    auto sequence{ setup_sequence(self_node, then_child, else_child) };
+    auto* const first_entry{ setup_sequence(self_node, completion_node, then_child, else_child) };
 
     self_node.post_condition.bind(
-        [this, first_step{ _steps.front().get() }, first_entry{ &sequence.begin }]
+        [this, first_step{ _steps.front().get() }, first_entry, &completion_node]
         (exec::execution_status)
         {
+            if (_cancel_requested)
+            {
+                set_state(state::cancelled);
+
+                std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
+
+                return;
+            }
+
             if (get_context().has_value())
             {
                 first_step->set_context(get_context());
@@ -36,14 +46,15 @@ auto sequential_composite::expand_on_graph(exec::task_graph::node& parent) -> ex
             first_entry->activate();
         });
 
-    return exec::graph_segment{ .begin{ self_node }, .end{ sequence.end } };
+    return exec::graph_segment{ .begin{ self_node }, .end{ completion_node } };
 }
 
 
 auto sequential_composite::setup_sequence(
     exec::task_graph::node& self_node,
+    exec::task_graph::node& completion_node,
     exec::task_graph::node* then_child,
-    exec::task_graph::node* else_child) -> exec::graph_segment
+    exec::task_graph::node* else_child) -> exec::task_graph::node*
 {
     auto entries{ std::vector<exec::graph_segment>{} };
     entries.reserve(_steps.size());
@@ -60,11 +71,20 @@ auto sequential_composite::setup_sequence(
         auto* const next_step{ i + 1 < _steps.size() ? _steps[i + 1].get() : nullptr };
 
         entries[i].end.post_condition.bind(
-            [this, current_step, next_begin, next_step, then_child, else_child]
+            [this, current_step, next_begin, next_step, then_child, else_child, &completion_node]
             (exec::execution_status)
             {
-                if (get_state() == state::aborted)
+                if (get_state() == state::cancelled)
                 {
+                    return;
+                }
+
+                if (_cancel_requested)
+                {
+                    set_state(state::cancelled);
+
+                    std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
+
                     return;
                 }
 
@@ -86,6 +106,8 @@ auto sequential_composite::setup_sequence(
 
                             then_child->activate();
                         }
+
+                        std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
                     }
                 }
                 else if (current_step->get_state() == state::failed)
@@ -98,11 +120,13 @@ auto sequential_composite::setup_sequence(
 
                         else_child->activate();
                     }
+
+                    std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
                 }
             });
     }
 
-    return exec::graph_segment{ .begin{ entries.front().begin }, .end{ entries.back().end } };
+    return &entries.front().begin;
 }
 
 }

@@ -23,7 +23,7 @@ TEST_CASE("run")
     {
         auto ran{ false };
 
-        const auto chain{ he::run(
+        auto chain{ he::run(
             he::action{ [&ran] (const he::action::context&)
             {
                 ran = true;
@@ -35,22 +35,22 @@ TEST_CASE("run")
         REQUIRE(ran);
     }
 
-    SECTION("abort forwards")
+    SECTION("cancel forwards")
     {
         auto fired{ false };
 
         auto instance{ he::action{ [] (const he::action::context&) { return true; } } };
 
-        instance.on(he::action::state::aborted, [&fired] { fired = true; });
+        instance.on(he::action::state::cancelled, [&fired] { fired = true; });
 
-        const auto chain{ he::run(std::move(instance)) };
+        auto chain{ he::run(std::move(instance)) };
 
-        chain.abort();
+        chain.cancel();
 
         REQUIRE(fired);
     }
 
-    SECTION("abort cancels an in-flight async task")
+    SECTION("cancel cancels an in-flight async task")
     {
         auto started{ std::atomic<bool>{ false } };
         auto observed_cancel{ std::atomic<bool>{ false } };
@@ -70,7 +70,7 @@ TEST_CASE("run")
             } }
         };
 
-        const auto chain{ he::run(std::move(instance)) };
+        auto chain{ he::run(std::move(instance)) };
 
         chain.execute();
 
@@ -78,7 +78,7 @@ TEST_CASE("run")
         {
         }
 
-        chain.abort();
+        chain.cancel();
 
         while (!observed_cancel)
         {
@@ -105,7 +105,7 @@ TEST_CASE("run")
             }
         };
 
-        const auto chain{ he::run(custom_action{}) };
+        auto chain{ he::run(custom_action{}) };
 
         chain.execute();
 
@@ -116,7 +116,7 @@ TEST_CASE("run")
     {
         auto run_count{ 0 };
 
-        const auto chain{ he::run(
+        auto chain{ he::run(
             he::action{ [&run_count] (const he::action::context&)
             {
                 ++run_count;
@@ -146,7 +146,7 @@ TEST_CASE("run")
                 cv.notify_one();
             });
 
-        const auto chain{ he::run(std::move(instance)) };
+        auto chain{ he::run(std::move(instance)) };
 
         chain.execute();
 
@@ -186,7 +186,7 @@ TEST_CASE("run example")
 
         auto initial_context{ he::action::context{ { "label", std::string{ "run" } } } };
 
-        const auto chain{ he::run(
+        auto chain{ he::run(
             he::sequential_composite{
                 he::action{ [] (const auto&) { return true; }, initial_context }
                     .then(he::action{ [] (const auto&) { return true; } }),

@@ -18,7 +18,7 @@ public:
         requires (sizeof...(action_ts) > 0) && (exec::action_like<std::decay_t<action_ts>> && ...)
     explicit sequential_composite(action_ts&&... steps);
 
-    auto abort() -> void override;
+    auto cancel() -> void override;
 
 protected:
     auto expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segment override;
@@ -26,8 +26,9 @@ protected:
 private:
     auto setup_sequence(
         exec::task_graph::node& self_node,
+        exec::task_graph::node& completion_node,
         exec::task_graph::node* then_child,
-        exec::task_graph::node* else_child) -> exec::graph_segment;
+        exec::task_graph::node* else_child) -> exec::task_graph::node*;
 
 private:
     std::vector<std::unique_ptr<basic_action>> _steps;

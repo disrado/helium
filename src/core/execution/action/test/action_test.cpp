@@ -241,7 +241,7 @@ TEST_CASE("action chaining")
 }
 
 
-TEST_CASE("action abort")
+TEST_CASE("action cancel")
 {
     SECTION("harmless after completion")
     {
@@ -258,9 +258,9 @@ TEST_CASE("action abort")
 
         REQUIRE(ran);
 
-        root.abort();
+        root.cancel();
 
-        REQUIRE(root.get_state() == he::action::state::aborted);
+        REQUIRE(root.get_state() == he::action::state::succeeded);
     }
 }
 

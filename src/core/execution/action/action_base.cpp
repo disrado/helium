@@ -1,7 +1,5 @@
 #include "action_base.hpp"
 
-#include "core/execution/scheduler.hpp"
-
 
 namespace he::exec
 {
@@ -44,9 +42,6 @@ auto basic_action::translate_into_graph(task_graph::node& parent) -> graph_segme
 {
     auto segment{ expand_on_graph(parent) };
 
-    _self_node = &segment.begin;
-    _self_graph = segment.begin.owning_graph();
-
     if (auto self{ weak_from_this().lock() })
     {
         segment.begin.anchor = std::move(self);
@@ -56,22 +51,15 @@ auto basic_action::translate_into_graph(task_graph::node& parent) -> graph_segme
 }
 
 
-auto basic_action::abort() -> void
+auto basic_action::set_context(std::optional<context> new_context) -> void
 {
-    if (auto graph{ _self_graph.lock() })
-    {
-        if (_self_node->id != invalid_task_id)
-        {
-            scheduler::instance().cancel(_self_node->id);
-        }
-    }
+    _context = std::move(new_context);
+}
 
-    _definition = {};
 
-    _then_action = nullptr;
-    _else_action = nullptr;
-
-    set_state(state::aborted);
+auto basic_action::get_context() const -> const std::optional<context>&
+{
+    return _context;
 }
 
 
@@ -90,18 +78,6 @@ auto basic_action::succeed() -> void
 auto basic_action::fail() -> void
 {
     set_state(state::failed);
-}
-
-
-auto basic_action::get_context() const -> const std::optional<context>&
-{
-    return _context;
-}
-
-
-auto basic_action::set_context(std::optional<context> new_context) -> void
-{
-    _context = std::move(new_context);
 }
 
 
