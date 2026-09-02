@@ -19,13 +19,13 @@ public:
     auto cancel() const -> void;
 
 private:
-    std::shared_ptr<exec::basic_action> _target;
+    std::shared_ptr<exec::basic_action> _root_action;
 
     std::shared_ptr<exec::task_graph> _graph;
 };
 
 run::run(exec::action_like auto target)
-    : _target{ std::make_shared<decltype(target)>(std::move(target)) }
+    : _root_action{ std::make_shared<decltype(target)>(std::move(target)) }
 {
 }
 
