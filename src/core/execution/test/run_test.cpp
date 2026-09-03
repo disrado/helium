@@ -1,20 +1,17 @@
 #include "core/execution/action/action.hpp"
 #include "core/execution/action/async_action.hpp"
+#include "core/execution/action/parallel_composite.hpp"
 #include "core/execution/action/sequential_composite.hpp"
-#include "core/execution/run.hpp"
 #include "core/execution/scheduler.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <any>
 #include <atomic>
-#include <condition_variable>
-#include <mutex>
 #include <stop_token>
 #include <string>
 #include <tuple>
 #include <utility>
-
-#include "core/execution/action/parallel_composite.hpp"
 
 
 TEST_CASE("run")
@@ -23,31 +20,15 @@ TEST_CASE("run")
     {
         auto ran{ false };
 
-        auto chain{ he::run(
+        auto token{
             he::action{ [&ran] (const he::action::context&)
             {
                 ran = true;
                 return true;
-            } }) };
-
-        chain.execute();
+            } }.run()
+        };
 
         REQUIRE(ran);
-    }
-
-    SECTION("cancel forwards")
-    {
-        auto fired{ false };
-
-        auto instance{ he::action{ [] (const he::action::context&) { return true; } } };
-
-        instance.on(he::action::state::cancelled, [&fired] { fired = true; });
-
-        auto chain{ he::run(std::move(instance)) };
-
-        chain.cancel();
-
-        REQUIRE(fired);
     }
 
     SECTION("cancel cancels an in-flight async task")
@@ -55,30 +36,26 @@ TEST_CASE("run")
         auto started{ std::atomic<bool>{ false } };
         auto observed_cancel{ std::atomic<bool>{ false } };
 
-        auto instance{
-            he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token token)
+        auto token{
+            he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token stop)
             {
                 started = true;
 
-                while (!token.stop_requested())
+                while (!stop.stop_requested())
                 {
                 }
 
                 observed_cancel = true;
 
                 return false;
-            } }
+            } }.run()
         };
-
-        auto chain{ he::run(std::move(instance)) };
-
-        chain.execute();
 
         while (!started)
         {
         }
 
-        chain.cancel();
+        token.cancel();
 
         while (!observed_cancel)
         {
@@ -97,61 +74,38 @@ TEST_CASE("run")
         class custom_action final: public he::action
         {
         public:
-            auto execute(std::stop_token) -> void override
+            auto execute(he::exec::task_graph::node& self, std::stop_token) -> void override
             {
                 custom_execute_ran = true;
 
-                succeed();
+                self.state = state::succeeded;
             }
         };
 
-        auto chain{ he::run(custom_action{}) };
-
-        chain.execute();
+        auto token{ custom_action{}.run() };
 
         REQUIRE(custom_execute_ran);
     }
 
-    SECTION("execute() is repeatable")
-    {
-        auto run_count{ 0 };
-
-        auto chain{ he::run(
-            he::action{ [&run_count] (const he::action::context&)
-            {
-                ++run_count;
-                return true;
-            } }) };
-
-        chain.execute();
-        chain.execute();
-
-        REQUIRE(run_count == 2);
-    }
-
     SECTION("survives async completion after execute() returns")
     {
-        auto mutex{ std::mutex{} };
-        auto cv{ std::condition_variable{} };
-        auto done{ false };
+        auto done{ std::atomic<bool>{ false } };
 
-        auto instance{ he::async_action{ [] (const he::async_action::context&) { return true; } } };
+        auto token{
+            he::async_action{ [] (const he::async_action::context&) { return true; } }
+            .then(
+                he::action{ [&done] (const he::action::context&)
+                {
+                    done = true;
+                    return true;
+                } })
+            .run()
+        };
 
-        instance.on(
-            he::async_action::state::succeeded,
-            [&]
-            {
-                const auto _{ std::lock_guard{ mutex } };
-                done = true;
-                cv.notify_one();
-            });
-
-        auto chain{ he::run(std::move(instance)) };
-
-        chain.execute();
-
-        auto lock{ std::unique_lock{ mutex } };
-        cv.wait(lock, [&] { return done; });
+        while (!done)
+        {
+            he::exec::scheduler::instance().process();
+        }
 
         REQUIRE(done);
     }
@@ -165,20 +119,20 @@ TEST_CASE("run example")
         class plain_action final: public he::action
         {
         public:
-            auto execute(std::stop_token) -> void override
+            auto execute(he::exec::task_graph::node& self, std::stop_token) -> void override
             {
-                succeed();
+                self.state = state::succeeded;
             }
         };
 
         class label_reader_action final: public he::action
         {
         public:
-            auto execute(std::stop_token) -> void override
+            auto execute(he::exec::task_graph::node& self, std::stop_token) -> void override
             {
-                std::ignore = std::any_cast<std::string>(get_context().value().at("label"));
+                std::ignore = std::any_cast<std::string>(self.context.value().at("label"));
 
-                fail();
+                self.state = state::failed;
             }
         };
 
@@ -186,9 +140,9 @@ TEST_CASE("run example")
 
         auto initial_context{ he::action::context{ { "label", std::string{ "run" } } } };
 
-        auto chain{ he::run(
+        auto token{
             he::sequential_composite{
-                he::action{ [] (const auto&) { return true; }, initial_context }
+                he::action{ [] (const auto&) { return true; } }
                     .then(he::action{ [] (const auto&) { return true; } }),
                 he::async_action{ [] (const he::async_action::context&) { return true; } }
                     .then(he::sequential_composite{
@@ -222,10 +176,9 @@ TEST_CASE("run example")
                 {
                     done = true;
                     return true;
-                } }))
+                } })
+            .run(std::move(initial_context))
         };
-
-        chain.execute();
 
         while (!done)
         {

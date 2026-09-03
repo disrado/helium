@@ -3,8 +3,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <any>
 #include <memory>
 #include <stop_token>
+#include <string>
 #include <tuple>
 
 
@@ -39,7 +41,7 @@ TEST_CASE("action")
         std::ignore = node.definition.try_execute(std::stop_token{});
 
         REQUIRE(ran);
-        REQUIRE(instance.get_state() == he::action::state::succeeded);
+        REQUIRE(node.state == he::action::state::succeeded);
     }
 
     SECTION("reports failure")
@@ -51,7 +53,7 @@ TEST_CASE("action")
 
         std::ignore = node.definition.try_execute(std::stop_token{});
 
-        REQUIRE(instance.get_state() == he::action::state::failed);
+        REQUIRE(node.state == he::action::state::failed);
     }
 }
 
@@ -198,11 +200,11 @@ TEST_CASE("action chaining")
         class custom_action final: public he::action
         {
         public:
-            auto execute(std::stop_token) -> void override
+            auto execute(he::exec::task_graph::node& self, std::stop_token) -> void override
             {
                 custom_execute_ran = true;
 
-                succeed();
+                self.state = state::succeeded;
             }
         };
 
@@ -222,10 +224,10 @@ TEST_CASE("action chaining")
 
         auto context{ he::action::context{ { "flag", true } } };
 
-        auto graph{ std::make_shared<he::exec::task_graph>() };
-
-        graph->activate(
-            he::action{ [] (const he::action::context&) { return true; }, std::move(context) }
+        // bound to a named variable, not chained inline, so the action tree (and the closures
+        // its nodes captured `this` into) stays alive past this statement, until activate() below
+        auto root{
+            he::action{ [] (const he::action::context&) { return true; } }
             .then(
                 he::action{
                     [&received] (const he::action::context& ctx)
@@ -234,7 +236,14 @@ TEST_CASE("action chaining")
                         return true;
                     }
                 })
-            .translate_into_graph(graph->root()).begin);
+        };
+
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        auto segment{ root.translate_into_graph(graph->root()) };
+
+        segment.begin.context = std::move(context);
+
+        graph->activate(segment.begin);
 
         REQUIRE(received);
     }
@@ -254,29 +263,14 @@ TEST_CASE("action cancel")
         } } };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        graph->activate(root.translate_into_graph(graph->root()).begin);
+        auto& node{ root.translate_into_graph(graph->root()).begin };
+
+        graph->activate(node);
 
         REQUIRE(ran);
 
-        root.cancel();
+        graph->cancel();
 
-        REQUIRE(root.get_state() == he::action::state::succeeded);
-    }
-}
-
-
-TEST_CASE("action default leaf")
-{
-    SECTION("constructible from callable")
-    {
-        auto ran{ false };
-
-        he::action{ [&ran] (const he::action::context&)
-        {
-            ran = true;
-            return true;
-        } }.execute();
-
-        REQUIRE(ran);
+        REQUIRE(node.state == he::action::state::succeeded);
     }
 }

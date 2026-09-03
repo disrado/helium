@@ -2,8 +2,11 @@
 
 #include "core/delegate/delegate.hpp"
 
+#include <any>
 #include <cstdint>
+#include <map>
 #include <stop_token>
+#include <string>
 #include <type_traits>
 
 
@@ -47,6 +50,19 @@ enum class execution_status : uint8_t
     cancelled,
     faulted
 };
+
+
+enum class action_state : uint8_t
+{
+    dormant,
+    running,
+    succeeded,
+    failed,
+    cancelled
+};
+
+
+using action_context = std::map<std::string, std::any>;
 
 
 using task_definition = he::delegate<void(std::stop_token)>;

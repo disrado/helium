@@ -49,6 +49,40 @@ auto task_graph::root() -> node&
 }
 
 
+auto task_graph::cancel() -> void
+{
+    cancel_subtree(_root);
+}
+
+
+auto task_graph::cancel_subtree(node& current) -> void
+{
+    const auto terminal{
+        current.state == action_state::succeeded
+        || current.state == action_state::failed
+        || current.state == action_state::cancelled };
+
+    if (!terminal)
+    {
+        current.cancel_requested = true;
+
+        if (current.id != invalid_task_id)
+        {
+            scheduler::instance().cancel(current.id);
+        }
+        else if (current.definition.is_bound())
+        {
+            current.state = action_state::cancelled;
+        }
+    }
+
+    for (auto& child: current.children())
+    {
+        cancel_subtree(*child);
+    }
+}
+
+
 auto task_graph::activate(node& target) -> void
 {
     {

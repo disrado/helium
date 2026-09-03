@@ -1,5 +1,4 @@
 #include "core/execution/action/async_action.hpp"
-#include "core/execution/run.hpp"
 #include "core/execution/scheduler.hpp"
 #include "core/execution/task_graph.hpp"
 
@@ -52,7 +51,7 @@ TEST_CASE("async_action")
         std::ignore = node.definition.try_execute(std::stop_token{});
 
         REQUIRE(ran);
-        REQUIRE(instance.get_state() == he::async_action::state::succeeded);
+        REQUIRE(node.state == he::async_action::state::succeeded);
     }
 
     SECTION("reports failure")
@@ -64,7 +63,7 @@ TEST_CASE("async_action")
 
         std::ignore = node.definition.try_execute(std::stop_token{});
 
-        REQUIRE(instance.get_state() == he::async_action::state::failed);
+        REQUIRE(node.state == he::async_action::state::failed);
     }
 }
 
@@ -91,15 +90,13 @@ TEST_CASE("async_action cancel")
             } }
         };
 
-        auto chain{ he::run(std::move(instance)) };
-
-        chain.execute();
+        auto token{ std::move(instance).run() };
 
         while (!started)
         {
         }
 
-        chain.cancel();
+        token.cancel();
 
         while (!observed_cancel)
         {

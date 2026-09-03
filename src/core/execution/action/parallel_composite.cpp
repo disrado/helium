@@ -1,32 +1,72 @@
 #include "parallel_composite.hpp"
 
+#include <cstddef>
 #include <tuple>
 
 
 namespace he
 {
 
-auto parallel_composite::cancel() -> void
+namespace
 {
-    _cancel_requested = true;
 
-    for (auto& step: _steps)
+struct join_state final
+{
+public:
+    std::size_t pending;
+    bool any_failed{ false };
+    std::vector<exec::task_graph::node*> step_begins;
+};
+
+
+auto resolve_join(
+    exec::task_graph::node& self_node,
+    exec::task_graph::node& join_node,
+    const join_state& state,
+    exec::task_graph::node* then_child,
+    exec::task_graph::node* else_child) -> void
+{
+    self_node.state = state.any_failed ? exec::action_state::failed : exec::action_state::succeeded;
+
+    auto merged{ exec::action_context{} };
+
+    for (auto* begin: state.step_begins)
     {
-        step->cancel();
+        if (begin->context.has_value())
+        {
+            for (auto& [key, value]: begin->context.value())
+            {
+                merged[key] = value;
+            }
+        }
     }
+
+    if (state.any_failed && else_child)
+    {
+        else_child->context = merged;
+
+        else_child->activate();
+    }
+    else if (!state.any_failed && then_child)
+    {
+        then_child->context = merged;
+
+        then_child->activate();
+    }
+
+    std::ignore = join_node.post_condition.execute(exec::execution_status::completed);
+}
+
 }
 
 
-auto parallel_composite::expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segment
+auto parallel_composite::translate_into_graph(exec::task_graph::node& parent) -> exec::graph_segment
 {
     auto& self_node{ parent.add_child() };
     auto& join_node{ self_node.add_child() };
 
     auto* const then_child{ _then_action ? &_then_action->translate_into_graph(self_node).begin : nullptr };
     auto* const else_child{ _else_action ? &_else_action->translate_into_graph(self_node).begin : nullptr };
-
-    _pending = _steps.size();
-    _any_failed = false;
 
     setup_join(self_node, join_node, then_child, else_child);
 
@@ -48,47 +88,58 @@ auto parallel_composite::setup_join(
         entries.push_back(step->translate_into_graph(self_node));
     }
 
+    auto state{ std::make_shared<join_state>() };
+    state->pending = _steps.size();
+    state->step_begins.reserve(entries.size());
+
+    for (auto& entry: entries)
+    {
+        state->step_begins.push_back(&entry.begin);
+    }
+
     for (std::size_t i{ 0 }; i < _steps.size(); ++i)
     {
-        auto* const current_step{ _steps[i].get() };
+        auto* const current_begin{ &entries[i].begin };
 
         entries[i].end.post_condition.bind(
-            [this, current_step, &join_node, then_child, else_child] (exec::execution_status)
+            [&self_node, current_begin, &join_node, then_child, else_child, state]
+            (exec::execution_status)
             {
-                if (get_state() == state::cancelled)
+                if (self_node.state == exec::action_state::cancelled)
                 {
                     return;
                 }
 
-                if (!_cancel_requested && current_step->get_state() != state::succeeded)
+                if (!self_node.cancel_requested && current_begin->state != exec::action_state::succeeded)
                 {
-                    _any_failed = true;
+                    state->any_failed = true;
                 }
 
-                if (--_pending != 0)
+                if (--state->pending != 0)
                 {
                     return;
                 }
 
-                if (_cancel_requested)
+                if (self_node.cancel_requested)
                 {
-                    set_state(state::cancelled);
+                    self_node.state = exec::action_state::cancelled;
 
                     std::ignore = join_node.post_condition.execute(exec::execution_status::completed);
                 }
                 else
                 {
-                    resolve(join_node, then_child, else_child);
+                    resolve_join(self_node, join_node, *state, then_child, else_child);
                 }
             });
     }
 
     self_node.post_condition.bind(
-        [this, entries, &join_node] (exec::execution_status)
+        [this, &self_node, entries, &join_node]
+        (exec::execution_status)
         {
-            if (_cancel_requested)
+            if (self_node.cancel_requested)
             {
-                set_state(state::cancelled);
+                self_node.state = exec::action_state::cancelled;
 
                 std::ignore = join_node.post_condition.execute(exec::execution_status::completed);
 
@@ -97,49 +148,11 @@ auto parallel_composite::setup_join(
 
             for (std::size_t i{ 0 }; i < _steps.size(); ++i)
             {
-                if (get_context().has_value())
-                {
-                    _steps[i]->set_context(get_context());
-                }
+                entries[i].begin.context = self_node.context;
 
                 entries[i].begin.activate();
             }
         });
-}
-
-
-auto parallel_composite::resolve(
-    const exec::task_graph::node& join_node,
-    exec::task_graph::node* then_child,
-    exec::task_graph::node* else_child) -> void
-{
-    set_state(_any_failed ? state::failed : state::succeeded);
-
-    auto merged{ context{} };
-
-    for (auto& step: _steps)
-    {
-        if (const auto& ctx{ step->get_context() }; ctx.has_value())
-        {
-            for (auto& [key, value]: ctx.value())
-            {
-                merged[key] = value;
-            }
-        }
-    }
-
-    if (_any_failed && else_child)
-    {
-        _else_action->set_context(merged);
-        else_child->activate();
-    }
-    else if (!_any_failed && then_child)
-    {
-        _then_action->set_context(merged);
-        then_child->activate();
-    }
-
-    std::ignore = join_node.post_condition.execute(exec::execution_status::completed);
 }
 
 }

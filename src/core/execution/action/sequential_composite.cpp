@@ -4,18 +4,7 @@
 namespace he
 {
 
-auto sequential_composite::cancel() -> void
-{
-    _cancel_requested = true;
-
-    for (auto& step: _steps)
-    {
-        step->cancel();
-    }
-}
-
-
-auto sequential_composite::expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segment
+auto sequential_composite::translate_into_graph(exec::task_graph::node& parent) -> exec::graph_segment
 {
     auto& self_node{ parent.add_child() };
     auto& completion_node{ self_node.add_child() };
@@ -26,22 +15,19 @@ auto sequential_composite::expand_on_graph(exec::task_graph::node& parent) -> ex
     auto* const first_entry{ setup_sequence(self_node, completion_node, then_child, else_child) };
 
     self_node.post_condition.bind(
-        [this, first_step{ _steps.front().get() }, first_entry, &completion_node]
+        [&self_node, first_entry, &completion_node]
         (exec::execution_status)
         {
-            if (_cancel_requested)
+            if (self_node.cancel_requested)
             {
-                set_state(state::cancelled);
+                self_node.state = exec::action_state::cancelled;
 
                 std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
 
                 return;
             }
 
-            if (get_context().has_value())
-            {
-                first_step->set_context(get_context());
-            }
+            first_entry->context = self_node.context;
 
             first_entry->activate();
         });
@@ -66,43 +52,42 @@ auto sequential_composite::setup_sequence(
 
     for (std::size_t i{ 0 }; i < _steps.size(); ++i)
     {
-        auto* const current_step{ _steps[i].get() };
+        auto* const current_begin{ &entries[i].begin };
         auto* const next_begin{ i + 1 < _steps.size() ? &entries[i + 1].begin : nullptr };
-        auto* const next_step{ i + 1 < _steps.size() ? _steps[i + 1].get() : nullptr };
 
         entries[i].end.post_condition.bind(
-            [this, current_step, next_begin, next_step, then_child, else_child, &completion_node]
+            [&self_node, current_begin, next_begin, then_child, else_child, &completion_node]
             (exec::execution_status)
             {
-                if (get_state() == state::cancelled)
+                if (self_node.state == exec::action_state::cancelled)
                 {
                     return;
                 }
 
-                if (_cancel_requested)
+                if (self_node.cancel_requested)
                 {
-                    set_state(state::cancelled);
+                    self_node.state = exec::action_state::cancelled;
 
                     std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
 
                     return;
                 }
 
-                if (current_step->get_state() == state::succeeded)
+                if (current_begin->state == exec::action_state::succeeded)
                 {
                     if (next_begin)
                     {
-                        next_step->set_context(current_step->get_context());
+                        next_begin->context = current_begin->context;
 
                         next_begin->activate();
                     }
                     else
                     {
-                        set_state(state::succeeded);
+                        self_node.state = exec::action_state::succeeded;
 
                         if (then_child)
                         {
-                            _then_action->set_context(current_step->get_context());
+                            then_child->context = current_begin->context;
 
                             then_child->activate();
                         }
@@ -110,13 +95,13 @@ auto sequential_composite::setup_sequence(
                         std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
                     }
                 }
-                else if (current_step->get_state() == state::failed)
+                else if (current_begin->state == exec::action_state::failed)
                 {
-                    set_state(state::failed);
+                    self_node.state = exec::action_state::failed;
 
                     if (else_child)
                     {
-                        _else_action->set_context(current_step->get_context());
+                        else_child->context = current_begin->context;
 
                         else_child->activate();
                     }

@@ -26,7 +26,6 @@ set(helium_headers
     core/execution/action/async_action.hpp
     core/execution/action/sequential_composite.hpp
     core/execution/action/parallel_composite.hpp
-    core/execution/run.hpp
     core/execution/defs.hpp
     core/execution/dispatcher.hpp
     core/execution/thread_pool.hpp
@@ -43,7 +42,6 @@ set(helium_sources
     core/execution/action/async_action.cpp
     core/execution/action/sequential_composite.cpp
     core/execution/action/parallel_composite.cpp
-    core/execution/run.cpp
     core/execution/thread_pool.cpp
     core/execution/thread_dispatcher.cpp
     core/execution/scheduler.cpp
@@ -86,7 +84,6 @@ set(test_sources
     core/execution/test/task_graph_test.cpp
     core/execution/test/thread_pool_test.cpp
     core/execution/test/thread_dispatcher_test.cpp
-    core/execution/action/test/action_base_test.cpp
     core/execution/action/test/action_test.cpp
     core/execution/action/test/async_action_test.cpp
     core/execution/action/test/sequential_composite_test.cpp

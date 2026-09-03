@@ -1,15 +1,13 @@
 #pragma once
 
 #include "core/delegate/delegate.hpp"
-#include "core/delegate/multicast_delegate.hpp"
 #include "core/execution/defs.hpp"
 #include "core/execution/task_graph.hpp"
 
-#include <any>
-#include <map>
 #include <memory>
+#include <optional>
 #include <stop_token>
-#include <string>
+#include <type_traits>
 
 
 namespace he::exec
@@ -23,71 +21,48 @@ public:
 };
 
 
-class basic_action: public std::enable_shared_from_this<basic_action>
+class execution_token;
+
+
+class basic_action
 {
 public:
-    using context = std::map<std::string, std::any>;
-
-    enum class state
-    {
-        dormant,
-        running,
-        succeeded,
-        failed,
-        cancelled
-    };
+    using state = action_state;
+    using context = action_context;
 
 public:
     basic_action() = default;
 
-    explicit basic_action(delegate<bool(const context&)> definition, std::optional<context> initial_context = std::nullopt);
-    explicit basic_action(delegate<bool(const context&, std::stop_token)> definition, std::optional<context> initial_context = std::nullopt);
+    explicit basic_action(delegate<bool(const context&)> definition);
+    explicit basic_action(delegate<bool(const context&, std::stop_token)> definition);
 
     template <typename callable_t>
         requires std::is_invocable_r_v<bool, callable_t, const context&>
               || std::is_invocable_r_v<bool, callable_t, const context&, std::stop_token>
-    explicit basic_action(callable_t definition, std::optional<context> initial_context = std::nullopt);
+    explicit basic_action(callable_t definition);
 
     basic_action(basic_action&&) noexcept = default;
     auto operator=(basic_action&&) noexcept -> basic_action& = default;
 
     virtual ~basic_action() noexcept = 0;
 
-    virtual auto execute(std::stop_token token = {}) -> void;
-    virtual auto cancel() -> void = 0;
+    virtual auto execute(task_graph::node& self, std::stop_token token = {}) -> void;
 
-    auto translate_into_graph(task_graph::node& parent) -> graph_segment;
+    virtual auto translate_into_graph(task_graph::node& parent) -> graph_segment = 0;
 
-    auto set_context(std::optional<context> new_context) -> void;
-    auto get_context() const -> const std::optional<context>&;
-
-    auto get_state() const -> state;
-
-    template <typename t>
-    auto on(state target_state, t&& delegate) -> basic_action&;
+    // explicit-object parameter deduces the *actual* most-derived type at each call site,
+    // unlike action_base<t>'s CRTP t (fixed at the first CRTP level, which would slice anything
+    // subclassed a level further, e.g. a custom_action : action)
+    template <typename self_t>
+    auto run(this self_t&& self, std::optional<action_context> initial_context = std::nullopt) -> execution_token;
 
 protected:
-    auto succeed() -> void;
-    auto fail() -> void;
-
-    auto set_state(state new_state) -> void;
-
     auto store_and_then(std::unique_ptr<basic_action> next_action) -> void;
     auto store_or_else(std::unique_ptr<basic_action> next_action) -> void;
 
-    virtual auto expand_on_graph(task_graph::node& parent) -> graph_segment = 0;
-
 protected:
-    state _state{ state::dormant };
-
-    bool _cancel_requested{ false };
-
-    std::optional<context> _context;
-
     std::unique_ptr<basic_action> _then_action;
     std::unique_ptr<basic_action> _else_action;
-
-    std::map<state, multicast_delegate<>> _ons;
 
 private:
     delegate<bool(const context&, std::stop_token)> _definition;
@@ -97,8 +72,7 @@ private:
 template <typename callable_t>
     requires std::is_invocable_r_v<bool, callable_t, const basic_action::context&>
           || std::is_invocable_r_v<bool, callable_t, const basic_action::context&, std::stop_token>
-basic_action::basic_action(callable_t definition, std::optional<context> initial_context)
-    : _context{ std::move(initial_context) }
+basic_action::basic_action(callable_t definition)
 {
     if constexpr (std::is_invocable_r_v<bool, callable_t, const basic_action::context&, std::stop_token>)
     {
@@ -112,14 +86,34 @@ basic_action::basic_action(callable_t definition, std::optional<context> initial
 }
 
 
-template <typename t>
-auto basic_action::on(state target_state, t&& delegate) -> basic_action&
+class execution_token final
 {
-    const auto [item, inserted]{ _ons.try_emplace(target_state, multicast_delegate<>{}) };
+public:
+    auto cancel() const -> void;
 
-    item->second.bind(std::forward<t>(delegate));
+private:
+    friend class basic_action;
 
-    return *this;
+    execution_token(std::shared_ptr<basic_action> root, std::shared_ptr<task_graph> graph);
+
+    std::shared_ptr<basic_action> _root;
+    std::shared_ptr<task_graph> _graph;
+};
+
+
+template <typename self_t>
+auto basic_action::run(this self_t&& self, std::optional<action_context> initial_context) -> execution_token
+{
+    auto root{ std::make_shared<std::decay_t<self_t>>(std::forward<self_t>(self)) };
+    auto graph{ std::make_shared<task_graph>() };
+    auto segment{ root->translate_into_graph(graph->root()) };
+
+    segment.begin.anchor = root;
+    segment.begin.context = std::move(initial_context);
+
+    graph->activate(segment.begin);
+
+    return execution_token{ std::move(root), std::move(graph) };
 }
 
 

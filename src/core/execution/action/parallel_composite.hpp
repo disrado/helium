@@ -19,10 +19,7 @@ public:
         requires (sizeof...(action_ts) > 0) && (exec::action_like<std::decay_t<action_ts>> && ...)
     explicit parallel_composite(action_ts&&... steps);
 
-    auto cancel() -> void override;
-
-protected:
-    auto expand_on_graph(exec::task_graph::node& parent) -> exec::graph_segment override;
+    auto translate_into_graph(exec::task_graph::node& parent) -> exec::graph_segment override;
 
 private:
     auto setup_join(
@@ -31,13 +28,8 @@ private:
         exec::task_graph::node* then_child,
         exec::task_graph::node* else_child) -> void;
 
-    auto resolve(const exec::task_graph::node& join_node, exec::task_graph::node* then_child, exec::task_graph::node* else_child) -> void;
-
 private:
     std::vector<std::unique_ptr<basic_action>> _steps;
-
-    std::size_t _pending{ 0 };
-    bool _any_failed{ false };
 };
 
 
