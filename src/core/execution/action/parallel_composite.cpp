@@ -15,13 +15,13 @@ auto parallel_composite::translate_into_graph(exec::task_node& parent) -> exec::
     self_node.then_node = _then_action ? &_then_action->translate_into_graph(self_node).start : nullptr;
     self_node.else_node = _else_action ? &_else_action->translate_into_graph(self_node).start : nullptr;
 
-    setup_join(self_node, join_node);
+    setup_join_node(self_node, join_node);
 
     return exec::graph_segment{ .start{ self_node }, .end{ join_node } };
 }
 
 
-auto parallel_composite::setup_join(exec::task_node& self_node, exec::task_node& join_node) -> void
+auto parallel_composite::setup_join_node(exec::task_node& self_node, exec::task_node& join_node) -> void
 {
     auto entries{ std::vector<exec::graph_segment>{} };
     entries.reserve(_steps.size());
@@ -47,7 +47,7 @@ auto parallel_composite::setup_join(exec::task_node& self_node, exec::task_node&
         entries[i].end.post_execution.bind(
             [this, &self_node, current_begin, &join_node, state] (exec::execution_status)
             {
-                on_branch_finished(self_node, current_begin, join_node, state);
+                on_step_finished(self_node, current_begin, join_node, state);
             });
     }
 
@@ -59,7 +59,7 @@ auto parallel_composite::setup_join(exec::task_node& self_node, exec::task_node&
 }
 
 
-auto parallel_composite::on_branch_finished(
+auto parallel_composite::on_step_finished(
     exec::task_node& self_node,
     const exec::task_node* current_begin,
     exec::task_node& join_node,

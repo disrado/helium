@@ -30,9 +30,9 @@ private:
         std::vector<exec::task_node*> step_starts;
     };
 
-    auto setup_join(exec::task_node& self_node, exec::task_node& join_node) -> void;
+    auto setup_join_node(exec::task_node& self_node, exec::task_node& join_node) -> void;
 
-    auto on_branch_finished(
+    auto on_step_finished(
         exec::task_node& self_node,
         const exec::task_node* current_begin,
         exec::task_node& join_node,
