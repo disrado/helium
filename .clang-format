@@ -170,7 +170,7 @@ SpaceBeforeParensOptions:
   AfterPlacementOperator: true
   AfterRequiresInClause: true
   AfterRequiresInExpression: true
-SpaceBeforeRangeBasedForLoopColon: false
+SpaceBeforeRangeBasedForLoopColon: true
 SpaceBeforeSquareBrackets: false
 SpaceInEmptyBraces: Never
 SpaceInEmptyParentheses: false

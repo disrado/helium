@@ -31,8 +31,7 @@ auto async_action::translate_into_graph(exec::task_node& parent) -> exec::graph_
                 self_node.then_node->set_context(self_node.get_context());
                 self_node.then_node->activate();
             }
-
-            if (self_node.state == exec::action_state::failed && self_node.else_node)
+            else if (self_node.state == exec::action_state::failed && self_node.else_node)
             {
                 self_node.else_node->set_context(self_node.get_context());
                 self_node.else_node->activate();

@@ -28,7 +28,7 @@ private:
     auto translate_steps(exec::task_node& self_node) -> std::vector<exec::graph_segment>;
 
     auto bind_step_completion(
-        exec::graph_segment& step,
+        const exec::graph_segment& step,
         exec::task_node& self_node,
         exec::task_node* next_segment_start,
         exec::task_node& completion_node) -> void;

@@ -23,11 +23,9 @@ auto resolve_join(exec::task_node& self_node, exec::task_node& join_node, const 
 {
     self_node.state = state.any_failed ? exec::action_state::failed : exec::action_state::succeeded;
 
-    auto* const target{ state.any_failed ? self_node.else_node : self_node.then_node };
-
-    if (target)
+    if (auto* const target{ state.any_failed ? self_node.else_node : self_node.then_node })
     {
-        for (auto* begin: state.step_starts)
+        for (auto* begin : state.step_starts)
         {
             target->merge_context(begin->get_context());
         }

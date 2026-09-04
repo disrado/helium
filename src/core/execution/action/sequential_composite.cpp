@@ -60,7 +60,7 @@ auto sequential_composite::translate_steps(exec::task_node& self_node) -> std::v
     auto segments{ std::vector<exec::graph_segment>{} };
     segments.reserve(_steps.size());
 
-    for (const auto& step: _steps)
+    for (const auto& step : _steps)
     {
         segments.push_back(step->translate_into_graph(self_node));
     }
@@ -70,7 +70,7 @@ auto sequential_composite::translate_steps(exec::task_node& self_node) -> std::v
 
 
 auto sequential_composite::bind_step_completion(
-    exec::graph_segment& step,
+    const exec::graph_segment& step,
     exec::task_node& self_node,
     exec::task_node* next_segment_start,
     exec::task_node& completion_node) -> void
