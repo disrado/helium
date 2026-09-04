@@ -21,17 +21,26 @@ public:
     auto translate_into_graph(exec::task_node& parent) -> exec::graph_segment override;
 
 private:
-    auto setup_sequence(
-        exec::task_node& self_node,
-        exec::task_node& completion_node) -> exec::task_node*;
+    auto setup_sequence(exec::task_node& self_node, exec::task_node& completion_node) -> exec::task_node*;
 
     auto translate_steps(exec::task_node& self_node) -> std::vector<exec::graph_segment>;
 
-    auto bind_step_completion(
+    auto link_steps(
         const exec::graph_segment& step,
         exec::task_node& self_node,
         exec::task_node* next_segment_start,
         exec::task_node& completion_node) -> void;
+
+    auto on_action_finished(
+        exec::task_node& self_node,
+        exec::task_node* first_entry,
+        const exec::task_node& completion_node) -> void;
+
+    auto on_step_finished(
+        exec::task_node& self_node,
+        exec::task_node* step_start,
+        exec::task_node* next_segment_start,
+        const exec::task_node& completion_node) -> void;
 
 private:
     std::vector<std::shared_ptr<basic_action>> _steps;
