@@ -18,17 +18,23 @@ public:
         requires (sizeof...(action_ts) > 0) && (exec::action_like<std::decay_t<action_ts>> && ...)
     explicit sequential_composite(action_ts&&... steps);
 
-    auto translate_into_graph(exec::task_graph::node& parent) -> exec::graph_segment override;
+    auto translate_into_graph(exec::task_node& parent) -> exec::graph_segment override;
 
 private:
     auto setup_sequence(
-        exec::task_graph::node& self_node,
-        exec::task_graph::node& completion_node,
-        exec::task_graph::node* then_child,
-        exec::task_graph::node* else_child) -> exec::task_graph::node*;
+        exec::task_node& self_node,
+        exec::task_node& completion_node) -> exec::task_node*;
+
+    auto translate_steps(exec::task_node& self_node) -> std::vector<exec::graph_segment>;
+
+    auto bind_step_completion(
+        exec::graph_segment& step,
+        exec::task_node& self_node,
+        exec::task_node* next_segment_start,
+        exec::task_node& completion_node) -> void;
 
 private:
-    std::vector<std::unique_ptr<basic_action>> _steps;
+    std::vector<std::shared_ptr<basic_action>> _steps;
 };
 
 
@@ -36,7 +42,7 @@ template <typename... action_ts>
     requires (sizeof...(action_ts) > 0) && (exec::action_like<std::decay_t<action_ts>> && ...)
 sequential_composite::sequential_composite(action_ts&&... steps)
 {
-    (_steps.push_back(std::make_unique<std::decay_t<action_ts>>(std::forward<action_ts>(steps))), ...);
+    (_steps.push_back(std::make_shared<std::decay_t<action_ts>>(std::forward<action_ts>(steps))), ...);
 }
 
 }

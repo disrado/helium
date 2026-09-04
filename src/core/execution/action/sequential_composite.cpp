@@ -4,114 +4,131 @@
 namespace he
 {
 
-auto sequential_composite::translate_into_graph(exec::task_graph::node& parent) -> exec::graph_segment
+auto sequential_composite::translate_into_graph(exec::task_node& parent) -> exec::graph_segment
 {
     auto& self_node{ parent.add_child() };
     auto& completion_node{ self_node.add_child() };
 
-    auto* const then_child{ _then_action ? &_then_action->translate_into_graph(self_node).begin : nullptr };
-    auto* const else_child{ _else_action ? &_else_action->translate_into_graph(self_node).begin : nullptr };
+    self_node.then_node = _then_action ? &_then_action->translate_into_graph(self_node).start : nullptr;
+    self_node.else_node = _else_action ? &_else_action->translate_into_graph(self_node).start : nullptr;
 
-    auto* const first_entry{ setup_sequence(self_node, completion_node, then_child, else_child) };
+    auto* const first_entry{ setup_sequence(self_node, completion_node) };
 
-    self_node.post_condition.bind(
-        [&self_node, first_entry, &completion_node]
-        (exec::execution_status)
+    self_node.post_execution.bind(
+        [self{ shared_from_this() }, &self_node, first_entry, &completion_node] (exec::execution_status)
         {
+            // unused but required in capture list for lifetime prolongation
+            std::ignore = self;
+
             if (self_node.cancel_requested)
             {
                 self_node.state = exec::action_state::cancelled;
 
-                std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
+                std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);
 
                 return;
             }
 
-            first_entry->context = self_node.context;
+            first_entry->set_context(self_node.get_context());
 
             first_entry->activate();
         });
 
-    return exec::graph_segment{ .begin{ self_node }, .end{ completion_node } };
+    return exec::graph_segment{ .start{ self_node }, .end{ completion_node } };
 }
 
 
 auto sequential_composite::setup_sequence(
-    exec::task_graph::node& self_node,
-    exec::task_graph::node& completion_node,
-    exec::task_graph::node* then_child,
-    exec::task_graph::node* else_child) -> exec::task_graph::node*
+    exec::task_node& self_node,
+    exec::task_node& completion_node) -> exec::task_node*
 {
-    auto entries{ std::vector<exec::graph_segment>{} };
-    entries.reserve(_steps.size());
+    auto segments{ translate_steps(self_node) };
 
-    for (auto& step: _steps)
+    for (std::size_t i{ 0 }; i < segments.size(); ++i)
     {
-        entries.push_back(step->translate_into_graph(self_node));
+        auto* const next_segment_start{ i + 1 < segments.size() ? &segments[i + 1].start : nullptr };
+
+        bind_step_completion(segments[i], self_node, next_segment_start, completion_node);
     }
 
-    for (std::size_t i{ 0 }; i < _steps.size(); ++i)
-    {
-        auto* const current_begin{ &entries[i].begin };
-        auto* const next_begin{ i + 1 < _steps.size() ? &entries[i + 1].begin : nullptr };
+    return &segments.front().start;
+}
 
-        entries[i].end.post_condition.bind(
-            [&self_node, current_begin, next_begin, then_child, else_child, &completion_node]
-            (exec::execution_status)
+
+auto sequential_composite::translate_steps(exec::task_node& self_node) -> std::vector<exec::graph_segment>
+{
+    auto segments{ std::vector<exec::graph_segment>{} };
+    segments.reserve(_steps.size());
+
+    for (const auto& step: _steps)
+    {
+        segments.push_back(step->translate_into_graph(self_node));
+    }
+
+    return segments;
+}
+
+
+auto sequential_composite::bind_step_completion(
+    exec::graph_segment& step,
+    exec::task_node& self_node,
+    exec::task_node* next_segment_start,
+    exec::task_node& completion_node) -> void
+{
+    auto* const step_start{ &step.start };
+
+    step.end.post_execution.bind(
+        [&self_node, step_start, next_segment_start, &completion_node] (exec::execution_status)
+        {
+            if (self_node.state == exec::action_state::cancelled)
             {
-                if (self_node.state == exec::action_state::cancelled)
+                return;
+            }
+
+            if (self_node.cancel_requested)
+            {
+                self_node.state = exec::action_state::cancelled;
+
+                std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);
+
+                return;
+            }
+
+            const auto advance_to{
+                [step_start] (exec::task_node* target)
                 {
-                    return;
-                }
-
-                if (self_node.cancel_requested)
-                {
-                    self_node.state = exec::action_state::cancelled;
-
-                    std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
-
-                    return;
-                }
-
-                if (current_begin->state == exec::action_state::succeeded)
-                {
-                    if (next_begin)
+                    if (target)
                     {
-                        next_begin->context = current_begin->context;
-
-                        next_begin->activate();
-                    }
-                    else
-                    {
-                        self_node.state = exec::action_state::succeeded;
-
-                        if (then_child)
-                        {
-                            then_child->context = current_begin->context;
-
-                            then_child->activate();
-                        }
-
-                        std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
+                        target->set_context(step_start->get_context());
+                        target->activate();
                     }
                 }
-                else if (current_begin->state == exec::action_state::failed)
-                {
-                    self_node.state = exec::action_state::failed;
+            };
 
-                    if (else_child)
-                    {
-                        else_child->context = current_begin->context;
+            if (step_start->state == exec::action_state::succeeded && next_segment_start)
+            {
+                advance_to(next_segment_start);
 
-                        else_child->activate();
-                    }
+                return;
+            }
 
-                    std::ignore = completion_node.post_condition.execute(exec::execution_status::completed);
-                }
-            });
-    }
+            if (step_start->state == exec::action_state::succeeded)
+            {
+                self_node.state = exec::action_state::succeeded;
 
-    return &entries.front().begin;
+                advance_to(self_node.then_node);
+
+                std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);
+            }
+            else if (step_start->state == exec::action_state::failed)
+            {
+                self_node.state = exec::action_state::failed;
+
+                advance_to(self_node.else_node);
+
+                std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);
+            }
+        });
 }
 
 }

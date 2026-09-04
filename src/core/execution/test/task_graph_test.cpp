@@ -56,27 +56,27 @@ TEST_CASE("task_graph activation")
         REQUIRE(ran);
     }
 
-    SECTION("fires post_condition after definition")
+    SECTION("fires post_execution after definition")
     {
         auto order{ std::string{} };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
         graph->root().definition.bind([&order] (std::stop_token) { order += "d"; });
-        graph->root().post_condition.bind([&order] (he::exec::execution_status) { order += "p"; });
+        graph->root().post_execution.bind([&order] (he::exec::execution_status) { order += "p"; });
 
         graph->activate(graph->root());
 
         REQUIRE(order == "dp");
     }
 
-    SECTION("fires post_condition when no definition bound")
+    SECTION("fires post_execution when no definition bound")
     {
         auto fired{ false };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph->root().post_condition.bind([&fired] (he::exec::execution_status) { fired = true; });
+        graph->root().post_execution.bind([&fired] (he::exec::execution_status) { fired = true; });
 
         graph->activate(graph->root());
 
@@ -91,7 +91,7 @@ TEST_CASE("task_graph activation")
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
         graph->root().definition.bind([&ran] (std::stop_token) { ran = true; });
-        graph->root().post_condition.bind([&fired] (he::exec::execution_status) { fired = true; });
+        graph->root().post_execution.bind([&fired] (he::exec::execution_status) { fired = true; });
         graph->root().pre_condition.bind([] { return false; });
 
         graph->activate(graph->root());
@@ -117,7 +117,7 @@ TEST_CASE("task_graph activation")
 
 TEST_CASE("task_graph traversal")
 {
-    SECTION("post_condition activates child")
+    SECTION("post_execution activates child")
     {
         auto ran{ false };
 
@@ -126,14 +126,14 @@ TEST_CASE("task_graph traversal")
         auto& child{ graph->root().add_child() };
         child.definition.bind([&ran] (std::stop_token) { ran = true; });
 
-        graph->root().post_condition.bind([&child] (he::exec::execution_status) { child.activate(); });
+        graph->root().post_execution.bind([&child] (he::exec::execution_status) { child.activate(); });
 
         graph->activate(graph->root());
 
         REQUIRE(ran);
     }
 
-    SECTION("post_condition activates multiple children")
+    SECTION("post_execution activates multiple children")
     {
         auto first_ran{ false };
         auto second_ran{ false };
@@ -146,7 +146,7 @@ TEST_CASE("task_graph traversal")
         auto& second{ graph->root().add_child() };
         second.definition.bind([&second_ran] (std::stop_token) { second_ran = true; });
 
-        graph->root().post_condition.bind(
+        graph->root().post_execution.bind(
             [&first, &second]
             (he::exec::execution_status)
             {
@@ -173,7 +173,7 @@ TEST_CASE("task_graph traversal")
         auto& skipped{ graph->root().add_child() };
         skipped.definition.bind([&skipped_ran] (std::stop_token) { skipped_ran = true; });
 
-        graph->root().post_condition.bind([&taken] (he::exec::execution_status) { taken.activate(); });
+        graph->root().post_execution.bind([&taken] (he::exec::execution_status) { taken.activate(); });
 
         graph->activate(graph->root());
 

@@ -2,6 +2,7 @@
 #include "core/execution/action/async_action.hpp"
 #include "core/execution/action/parallel_composite.hpp"
 #include "core/execution/action/sequential_composite.hpp"
+#include "core/execution/run.hpp"
 #include "core/execution/scheduler.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -18,8 +19,11 @@
 namespace
 {
 
-// leaves output context directly on its own node, standing in for "whatever this step
-// produced" since actions no longer carry per-instance seed state to pre-fill it with
+// contributes its own entries into whatever context already propagated onto this node, standing
+// in for "whatever this step contributed" since actions no longer carry per-instance seed state
+// to pre-fill it with. merge_context(), not set_context(): this step's context is what the chain
+// handed it (root-seeded or inherited from a predecessor) — replacing it outright would silently
+// discard that instead of adding to it
 class context_action final: public he::action
 {
 public:
@@ -28,9 +32,9 @@ public:
     {
     }
 
-    auto execute(he::exec::task_graph::node& self, std::stop_token) -> void override
+    auto execute(he::exec::task_node& self, std::stop_token) -> void override
     {
-        self.context = _ctx;
+        self.merge_context(_ctx);
         self.state = state::succeeded;
     }
 
@@ -48,17 +52,18 @@ TEST_CASE("parallel_composite")
         auto succeeded{ false };
 
         auto token{
-            he::parallel_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [] (const he::action::context&) { return true; } }
-            }
-            .then(he::action{ [&succeeded] (const he::action::context&)
-            {
-                succeeded = true;
-                return true;
-            } })
-            .run()
+            he::run(
+                he::parallel_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return true; } }
+                }
+                .then(
+                    he::action{ [&succeeded] (const he::action::context&)
+                    {
+                        succeeded = true;
+                        return true;
+                    } }))
         };
 
         REQUIRE(succeeded);
@@ -71,25 +76,26 @@ TEST_CASE("parallel_composite")
         auto third_ran{ false };
 
         auto token{
-            he::parallel_composite{
-                he::action{ [] (const he::action::context&) { return false; } },
-                he::action{ [&second_ran] (const he::action::context&)
-                {
-                    second_ran = true;
-                    return true;
-                } },
-                he::action{ [&third_ran] (const he::action::context&)
-                {
-                    third_ran = true;
-                    return true;
-                } }
-            }
-            .otherwise(he::action{ [&failed] (const he::action::context&)
-            {
-                failed = true;
-                return true;
-            } })
-            .run()
+            he::run(
+                he::parallel_composite{
+                    he::action{ [] (const he::action::context&) { return false; } },
+                    he::action{ [&second_ran] (const he::action::context&)
+                    {
+                        second_ran = true;
+                        return true;
+                    } },
+                    he::action{ [&third_ran] (const he::action::context&)
+                    {
+                        third_ran = true;
+                        return true;
+                    } }
+                }
+                .otherwise(
+                    he::action{ [&failed] (const he::action::context&)
+                    {
+                        failed = true;
+                        return true;
+                    } }))
         };
 
         REQUIRE(failed);
@@ -107,21 +113,22 @@ TEST_CASE("parallel_composite nesting")
         auto outer_done{ false };
 
         auto token{
-            he::sequential_composite{
-                he::parallel_composite{
-                    he::action{ [] (const he::action::context&) { return true; } },
-                    he::action{ [&inner_second_ran] (const he::action::context&)
+            he::run(
+                he::sequential_composite{
+                    he::parallel_composite{
+                        he::action{ [] (const he::action::context&) { return true; } },
+                        he::action{ [&inner_second_ran] (const he::action::context&)
+                        {
+                            inner_second_ran = true;
+                            return true;
+                        } }
+                    },
+                    he::action{ [&outer_done] (const he::action::context&)
                     {
-                        inner_second_ran = true;
+                        outer_done = true;
                         return true;
                     } }
-                },
-                he::action{ [&outer_done] (const he::action::context&)
-                {
-                    outer_done = true;
-                    return true;
-                } }
-            }.run()
+                })
         };
 
         REQUIRE(inner_second_ran);
@@ -137,17 +144,17 @@ TEST_CASE("parallel_composite chaining")
         auto then_ran{ false };
 
         auto token{
-            he::parallel_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [] (const he::action::context&) { return true; } }
-            }
-            .then(
-                he::action{ [&then_ran] (const he::action::context&)
-                {
-                    then_ran = true;
-                    return true;
-                } })
-            .run()
+            he::run(
+                he::parallel_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return true; } }
+                }
+                .then(
+                    he::action{ [&then_ran] (const he::action::context&)
+                    {
+                        then_ran = true;
+                        return true;
+                    } }))
         };
 
         REQUIRE(then_ran);
@@ -158,17 +165,17 @@ TEST_CASE("parallel_composite chaining")
         auto otherwise_ran{ false };
 
         auto token{
-            he::parallel_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [] (const he::action::context&) { return false; } }
-            }
-            .otherwise(
-                he::action{ [&otherwise_ran] (const he::action::context&)
-                {
-                    otherwise_ran = true;
-                    return true;
-                } })
-            .run()
+            he::run(
+                he::parallel_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return false; } }
+                }
+                .otherwise(
+                    he::action{ [&otherwise_ran] (const he::action::context&)
+                    {
+                        otherwise_ran = true;
+                        return true;
+                    } }))
         };
 
         REQUIRE(otherwise_ran);
@@ -182,17 +189,17 @@ TEST_CASE("parallel_composite chaining")
         auto second_context{ he::action::context{ { "second", std::string{ "b" } } } };
 
         auto token{
-            he::parallel_composite{
-                context_action{ first_context },
-                context_action{ second_context }
-            }
-            .then(
-                he::action{ [&received] (const he::action::context& ctx)
-                {
-                    received = ctx;
-                    return true;
-                } })
-            .run()
+            he::run(
+                he::parallel_composite{
+                    context_action{ first_context },
+                    context_action{ second_context }
+                }
+                .then(
+                    he::action{ [&received] (const he::action::context& ctx)
+                    {
+                        received = ctx;
+                        return true;
+                    } }))
         };
 
         REQUIRE(std::any_cast<std::string>(received.at("first")) == "a");
@@ -207,20 +214,46 @@ TEST_CASE("parallel_composite chaining")
         auto second_context{ he::action::context{ { "key", std::string{ "second" } } } };
 
         auto token{
-            he::parallel_composite{
-                context_action{ first_context },
-                context_action{ second_context }
-            }
-            .then(
-                he::action{ [&received] (const he::action::context& ctx)
-                {
-                    received = ctx;
-                    return true;
-                } })
-            .run()
+            he::run(
+                he::parallel_composite{
+                    context_action{ first_context },
+                    context_action{ second_context }
+                }
+                .then(
+                    he::action{ [&received] (const he::action::context& ctx)
+                    {
+                        received = ctx;
+                        return true;
+                    } }))
         };
 
         REQUIRE(std::any_cast<std::string>(received.at("key")) == "second");
+    }
+
+    SECTION("step contributions merge with propagated context, not replace it")
+    {
+        auto received{ he::action::context{} };
+
+        auto root_context{ he::action::context{ { "root", std::string{ "seed" } } } };
+
+        auto token{
+            he::run(
+                he::parallel_composite{
+                    context_action{ he::action::context{ { "first", std::string{ "a" } } } },
+                    context_action{ he::action::context{ { "second", std::string{ "b" } } } }
+                }
+                .then(
+                    he::action{ [&received] (const he::action::context& ctx)
+                    {
+                        received = ctx;
+                        return true;
+                    } }),
+                std::move(root_context))
+        };
+
+        REQUIRE(std::any_cast<std::string>(received.at("root")) == "seed");
+        REQUIRE(std::any_cast<std::string>(received.at("first")) == "a");
+        REQUIRE(std::any_cast<std::string>(received.at("second")) == "b");
     }
 }
 
@@ -234,25 +267,25 @@ TEST_CASE("parallel_composite with async step")
         auto succeeded{ std::atomic<bool>{ false } };
 
         auto token{
-            he::parallel_composite{
-                he::action{ [&sync_ran] (const he::action::context&)
-                {
-                    sync_ran = true;
-                    return true;
-                } },
-                he::async_action{ [&async_ran] (const he::async_action::context&)
-                {
-                    async_ran = true;
-                    return true;
-                } }
-            }
-            .then(
-                he::action{ [&succeeded] (const he::action::context&)
-                {
-                    succeeded = true;
-                    return true;
-                } })
-            .run()
+            he::run(
+                he::parallel_composite{
+                    he::action{ [&sync_ran] (const he::action::context&)
+                    {
+                        sync_ran = true;
+                        return true;
+                    } },
+                    he::async_action{ [&async_ran] (const he::async_action::context&)
+                    {
+                        async_ran = true;
+                        return true;
+                    } }
+                }
+                .then(
+                    he::action{ [&succeeded] (const he::action::context&)
+                    {
+                        succeeded = true;
+                        return true;
+                    } }))
         };
 
         while (!succeeded)
@@ -274,21 +307,22 @@ TEST_CASE("parallel_composite cancel")
         auto observed_cancel{ std::atomic<bool>{ false } };
 
         auto token{
-            he::parallel_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token stop)
-                {
-                    started = true;
-
-                    while (!stop.stop_requested())
+            he::run(
+                he::parallel_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token stop)
                     {
-                    }
+                        started = true;
 
-                    observed_cancel = true;
+                        while (!stop.stop_requested())
+                        {
+                        }
 
-                    return false;
-                } }
-            }.run()
+                        observed_cancel = true;
+
+                        return false;
+                    } }
+                })
         };
 
         while (!started)
@@ -314,33 +348,33 @@ TEST_CASE("parallel_composite cancel")
         auto otherwise_ran{ false };
 
         auto token{
-            he::parallel_composite{
-                he::async_action{ [&started, &worker_done] (const he::async_action::context&, std::stop_token stop)
-                {
-                    started = true;
-
-                    while (!stop.stop_requested())
+            he::run(
+                he::parallel_composite{
+                    he::async_action{ [&started, &worker_done] (const he::async_action::context&, std::stop_token stop)
                     {
-                    }
+                        started = true;
 
-                    worker_done = true;
+                        while (!stop.stop_requested())
+                        {
+                        }
 
-                    return false;
-                } }
-            }
-            .then(
-                he::action{ [&then_ran] (const he::action::context&)
-                {
-                    then_ran = true;
-                    return true;
-                } })
-            .otherwise(
-                he::action{ [&otherwise_ran] (const he::action::context&)
-                {
-                    otherwise_ran = true;
-                    return true;
-                } })
-            .run()
+                        worker_done = true;
+
+                        return false;
+                    } }
+                }
+                .then(
+                    he::action{ [&then_ran] (const he::action::context&)
+                    {
+                        then_ran = true;
+                        return true;
+                    } })
+                .otherwise(
+                    he::action{ [&otherwise_ran] (const he::action::context&)
+                    {
+                        otherwise_ran = true;
+                        return true;
+                    } }))
         };
 
         while (!started)

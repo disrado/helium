@@ -1,6 +1,7 @@
 #include "core/execution/action/action.hpp"
 #include "core/execution/action/async_action.hpp"
 #include "core/execution/action/sequential_composite.hpp"
+#include "core/execution/run.hpp"
 #include "core/execution/scheduler.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -20,23 +21,24 @@ TEST_CASE("sequential_composite")
         auto order{ std::string{} };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [&order] (const he::action::context&)
-                {
-                    order += "a";
-                    return true;
-                } },
-                he::action{ [&order] (const he::action::context&)
-                {
-                    order += "b";
-                    return true;
-                } },
-                he::action{ [&order] (const he::action::context&)
-                {
-                    order += "c";
-                    return true;
-                } }
-            }.run()
+            he::run(
+                he::sequential_composite{
+                    he::action{ [&order] (const he::action::context&)
+                    {
+                        order += "a";
+                        return true;
+                    } },
+                    he::action{ [&order] (const he::action::context&)
+                    {
+                        order += "b";
+                        return true;
+                    } },
+                    he::action{ [&order] (const he::action::context&)
+                    {
+                        order += "c";
+                        return true;
+                    } }
+                })
         };
 
         REQUIRE(order == "abc");
@@ -47,15 +49,16 @@ TEST_CASE("sequential_composite")
         auto third_ran{ false };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [] (const he::action::context&) { return false; } },
-                he::action{ [&third_ran] (const he::action::context&)
-                {
-                    third_ran = true;
-                    return true;
-                } }
-            }.run()
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return false; } },
+                    he::action{ [&third_ran] (const he::action::context&)
+                    {
+                        third_ran = true;
+                        return true;
+                    } }
+                })
         };
 
         REQUIRE_FALSE(third_ran);
@@ -66,17 +69,17 @@ TEST_CASE("sequential_composite")
         auto failed{ false };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [] (const he::action::context&) { return false; } },
-                he::action{ [] (const he::action::context&) { return true; } }
-            }
-            .otherwise(he::action{ [&failed] (const he::action::context&)
-            {
-                failed = true;
-                return true;
-            } })
-            .run()
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return false; } },
+                    he::action{ [] (const he::action::context&) { return true; } }
+                }
+                .otherwise(he::action{ [&failed] (const he::action::context&)
+                {
+                    failed = true;
+                    return true;
+                } }))
         };
 
         REQUIRE(failed);
@@ -89,18 +92,20 @@ TEST_CASE("sequential_composite")
         auto initial_context{ he::action::context{ { "label", std::string{ "run" } } } };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [&received] (const he::action::context& ctx)
-                {
-                    if (ctx.contains("label"))
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [&received] (const he::action::context& ctx)
                     {
-                        received = std::any_cast<std::string>(ctx.at("label"));
-                    }
+                        if (ctx.contains("label"))
+                        {
+                            received = std::any_cast<std::string>(ctx.at("label"));
+                        }
 
-                    return true;
-                } }
-            }.run(std::move(initial_context))
+                        return true;
+                    } }
+                },
+                std::move(initial_context))
         };
 
         REQUIRE(received.has_value());
@@ -114,20 +119,22 @@ TEST_CASE("sequential_composite")
         auto initial_context{ he::action::context{ { "label", std::string{ "run" } } } };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
+            he::run(
                 he::sequential_composite{
-                    he::action{ [&received] (const he::action::context& ctx)
-                    {
-                        if (ctx.contains("label"))
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::sequential_composite{
+                        he::action{ [&received] (const he::action::context& ctx)
                         {
-                            received = std::any_cast<std::string>(ctx.at("label"));
-                        }
+                            if (ctx.contains("label"))
+                            {
+                                received = std::any_cast<std::string>(ctx.at("label"));
+                            }
 
-                        return true;
-                    } }
-                }
-            }.run(std::move(initial_context))
+                            return true;
+                        } }
+                    }
+                },
+                std::move(initial_context))
         };
 
         REQUIRE(received.has_value());
@@ -139,16 +146,16 @@ TEST_CASE("sequential_composite")
         auto succeeded{ false };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [] (const he::action::context&) { return true; } }
-            }
-            .then(he::action{ [&succeeded] (const he::action::context&)
-            {
-                succeeded = true;
-                return true;
-            } })
-            .run()
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return true; } }
+                }
+                .then(he::action{ [&succeeded] (const he::action::context&)
+                {
+                    succeeded = true;
+                    return true;
+                } }))
         };
 
         REQUIRE(succeeded);
@@ -159,16 +166,16 @@ TEST_CASE("sequential_composite")
         auto failed{ false };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [] (const he::action::context&) { return false; } }
-            }
-            .otherwise(he::action{ [&failed] (const he::action::context&)
-            {
-                failed = true;
-                return true;
-            } })
-            .run()
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return false; } }
+                }
+                .otherwise(he::action{ [&failed] (const he::action::context&)
+                {
+                    failed = true;
+                    return true;
+                } }))
         };
 
         REQUIRE(failed);
@@ -183,16 +190,16 @@ TEST_CASE("sequential_composite chaining")
         auto then_ran{ false };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return true; } }
-            }
-            .then(
-                he::action{ [&then_ran] (const he::action::context&)
-                {
-                    then_ran = true;
-                    return true;
-                } })
-            .run()
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } }
+                }
+                .then(
+                    he::action{ [&then_ran] (const he::action::context&)
+                    {
+                        then_ran = true;
+                        return true;
+                    } }))
         };
 
         REQUIRE(then_ran);
@@ -203,16 +210,16 @@ TEST_CASE("sequential_composite chaining")
         auto otherwise_ran{ false };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return false; } }
-            }
-            .otherwise(
-                he::action{ [&otherwise_ran] (const he::action::context&)
-                {
-                    otherwise_ran = true;
-                    return true;
-                } })
-            .run()
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return false; } }
+                }
+                .otherwise(
+                    he::action{ [&otherwise_ran] (const he::action::context&)
+                    {
+                        otherwise_ran = true;
+                        return true;
+                    } }))
         };
 
         REQUIRE(otherwise_ran);
@@ -223,18 +230,18 @@ TEST_CASE("sequential_composite chaining")
         auto otherwise_ran{ false };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return true; } },
-                he::action{ [] (const he::action::context&) { return false; } },
-                he::action{ [] (const he::action::context&) { return true; } }
-            }
-            .otherwise(
-                he::action{ [&otherwise_ran] (const he::action::context&)
-                {
-                    otherwise_ran = true;
-                    return true;
-                } })
-            .run()
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } },
+                    he::action{ [] (const he::action::context&) { return false; } },
+                    he::action{ [] (const he::action::context&) { return true; } }
+                }
+                .otherwise(
+                    he::action{ [&otherwise_ran] (const he::action::context&)
+                    {
+                        otherwise_ran = true;
+                        return true;
+                    } }))
         };
 
         REQUIRE(otherwise_ran);
@@ -247,20 +254,21 @@ TEST_CASE("sequential_composite chaining")
         auto initial_context{ he::action::context{ { "label", std::string{ "run" } } } };
 
         auto token{
-            he::sequential_composite{
-                he::action{ [] (const he::action::context&) { return true; } }
-            }
-            .then(
-                he::action{ [&received] (const he::action::context& ctx)
-                {
-                    if (ctx.contains("label"))
+            he::run(
+                he::sequential_composite{
+                    he::action{ [] (const he::action::context&) { return true; } }
+                }
+                .then(
+                    he::action{ [&received] (const he::action::context& ctx)
                     {
-                        received = std::any_cast<std::string>(ctx.at("label"));
-                    }
+                        if (ctx.contains("label"))
+                        {
+                            received = std::any_cast<std::string>(ctx.at("label"));
+                        }
 
-                    return true;
-                } })
-            .run(std::move(initial_context))
+                        return true;
+                    } }),
+                std::move(initial_context))
         };
 
         REQUIRE(received.has_value());
@@ -277,19 +285,20 @@ TEST_CASE("sequential_composite with async step")
         auto done{ std::atomic<bool>{ false } };
 
         auto token{
-            he::sequential_composite{
-                he::async_action{ [&order] (const he::async_action::context&)
-                {
-                    order += "a";
-                    return true;
-                } },
-                he::action{ [&order, &done] (const he::action::context&)
-                {
-                    order += "b";
-                    done = true;
-                    return true;
-                } }
-            }.run()
+            he::run(
+                he::sequential_composite{
+                    he::async_action{ [&order] (const he::async_action::context&)
+                    {
+                        order += "a";
+                        return true;
+                    } },
+                    he::action{ [&order, &done] (const he::action::context&)
+                    {
+                        order += "b";
+                        done = true;
+                        return true;
+                    } }
+                })
         };
 
         while (!done)
@@ -311,22 +320,23 @@ TEST_CASE("sequential_composite thread marshaling")
         auto continuation_ran{ false };
 
         auto token{
-            he::sequential_composite{
+            he::run(
                 he::sequential_composite{
-                    he::action{ [] (const he::action::context&) { return true; } },
-                    he::async_action{ [&worker_thread_id] (const he::async_action::context&)
+                    he::sequential_composite{
+                        he::action{ [] (const he::action::context&) { return true; } },
+                        he::async_action{ [&worker_thread_id] (const he::async_action::context&)
+                        {
+                            worker_thread_id = std::this_thread::get_id();
+                            return true;
+                        } }
+                    },
+                    he::action{ [&continuation_thread_id, &continuation_ran] (const he::action::context&)
                     {
-                        worker_thread_id = std::this_thread::get_id();
+                        continuation_thread_id = std::this_thread::get_id();
+                        continuation_ran = true;
                         return true;
                     } }
-                },
-                he::action{ [&continuation_thread_id, &continuation_ran] (const he::action::context&)
-                {
-                    continuation_thread_id = std::this_thread::get_id();
-                    continuation_ran = true;
-                    return true;
-                } }
-            }.run()
+                })
         };
 
         // proves the continuation is marshaled, not fired inline on the worker thread
@@ -353,20 +363,21 @@ TEST_CASE("sequential_composite cancel")
         auto observed_cancel{ std::atomic<bool>{ false } };
 
         auto token{
-            he::sequential_composite{
-                he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token stop)
-                {
-                    started = true;
-
-                    while (!stop.stop_requested())
+            he::run(
+                he::sequential_composite{
+                    he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token stop)
                     {
-                    }
+                        started = true;
 
-                    observed_cancel = true;
+                        while (!stop.stop_requested())
+                        {
+                        }
 
-                    return false;
-                } }
-            }.run()
+                        observed_cancel = true;
+
+                        return false;
+                    } }
+                })
         };
 
         while (!started)
@@ -392,33 +403,33 @@ TEST_CASE("sequential_composite cancel")
         auto otherwise_ran{ false };
 
         auto token{
-            he::sequential_composite{
-                he::async_action{ [&started, &worker_done] (const he::async_action::context&, std::stop_token stop)
-                {
-                    started = true;
-
-                    while (!stop.stop_requested())
+            he::run(
+                he::sequential_composite{
+                    he::async_action{ [&started, &worker_done] (const he::async_action::context&, std::stop_token stop)
                     {
-                    }
+                        started = true;
 
-                    worker_done = true;
+                        while (!stop.stop_requested())
+                        {
+                        }
 
-                    return false;
-                } }
-            }
-            .then(
-                he::action{ [&then_ran] (const he::action::context&)
-                {
-                    then_ran = true;
-                    return true;
-                } })
-            .otherwise(
-                he::action{ [&otherwise_ran] (const he::action::context&)
-                {
-                    otherwise_ran = true;
-                    return true;
-                } })
-            .run()
+                        worker_done = true;
+
+                        return false;
+                    } }
+                }
+                .then(
+                    he::action{ [&then_ran] (const he::action::context&)
+                    {
+                        then_ran = true;
+                        return true;
+                    } })
+                .otherwise(
+                    he::action{ [&otherwise_ran] (const he::action::context&)
+                    {
+                        otherwise_ran = true;
+                        return true;
+                    } }))
         };
 
         while (!started)

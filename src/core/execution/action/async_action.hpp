@@ -13,7 +13,7 @@ public:
     using context = exec::basic_action::context;
     using action_base::action_base;
 
-    auto translate_into_graph(exec::task_graph::node& parent) -> exec::graph_segment override;
+    auto translate_into_graph(exec::task_node& parent) -> exec::graph_segment override;
 };
 
 }

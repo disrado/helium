@@ -6,44 +6,13 @@
 namespace he::exec
 {
 
-task_graph::node::node(task_graph& graph, node* parent)
-    : _graph{ graph }
-    , _parent{ parent }
-{
-}
-
-
-auto task_graph::node::add_child() -> node&
-{
-    return *_children.emplace_back(std::make_unique<node>(_graph, this));
-}
-
-
-auto task_graph::node::activate() -> void
-{
-    _graph.activate(*this);
-}
-
-
-auto task_graph::node::parent() const -> node*
-{
-    return _parent;
-}
-
-
-auto task_graph::node::children() const -> const std::vector<std::unique_ptr<node>>&
-{
-    return _children;
-}
-
-
 task_graph::task_graph()
     : _root{ *this }
 {
 }
 
 
-auto task_graph::root() -> node&
+auto task_graph::root() -> task_node&
 {
     return _root;
 }
@@ -55,7 +24,7 @@ auto task_graph::cancel() -> void
 }
 
 
-auto task_graph::cancel_subtree(node& current) -> void
+auto task_graph::cancel_subtree(task_node& current) -> void
 {
     const auto terminal{
         current.state == action_state::succeeded
@@ -83,7 +52,7 @@ auto task_graph::cancel_subtree(node& current) -> void
 }
 
 
-auto task_graph::activate(node& target) -> void
+auto task_graph::activate(task_node& target) -> void
 {
     {
         const auto _{ std::lock_guard{ _mutex } };
@@ -115,7 +84,7 @@ auto task_graph::advance() -> void
 }
 
 
-auto task_graph::pop_next() -> node*
+auto task_graph::pop_next() -> task_node*
 {
     const auto _{ std::lock_guard{ _mutex } };
 
@@ -134,7 +103,7 @@ auto task_graph::pop_next() -> node*
 }
 
 
-auto task_graph::run_node(node& current) -> void
+auto task_graph::run_node(task_node& current) -> void
 {
     if (!current.pre_condition.try_execute().value_or(true))
     {
@@ -143,7 +112,7 @@ auto task_graph::run_node(node& current) -> void
 
     if (!current.definition.is_bound())
     {
-        std::ignore = current.post_condition.execute(execution_status::completed);
+        std::ignore = current.post_execution.execute(execution_status::completed);
 
         return;
     }
@@ -155,7 +124,7 @@ auto task_graph::run_node(node& current) -> void
             .on_complete{
                 [self{ shared_from_this() }, current{ &current }] (execution_status status)
                 {
-                    std::ignore = current->post_condition.execute(status);
+                    std::ignore = current->post_execution.execute(status);
 
                     self->advance();
                 } }

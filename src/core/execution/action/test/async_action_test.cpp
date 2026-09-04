@@ -1,4 +1,5 @@
 #include "core/execution/action/async_action.hpp"
+#include "core/execution/run.hpp"
 #include "core/execution/scheduler.hpp"
 #include "core/execution/task_graph.hpp"
 
@@ -14,10 +15,10 @@ TEST_CASE("async_action")
 {
     SECTION("adds itself as a child")
     {
-        auto instance{ he::async_action{ [] (const he::async_action::context&) { return true; } } };
+        auto instance{ std::make_shared<he::async_action>( [] (const he::async_action::context&) { return true; } ) };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()).begin };
+        auto& node{ instance->translate_into_graph(graph->root()).start };
 
         REQUIRE(graph->root().children().size() == 1);
         REQUIRE(graph->root().children().front().get() == &node);
@@ -25,10 +26,10 @@ TEST_CASE("async_action")
 
     SECTION("uses async launch policy")
     {
-        auto instance{ he::async_action{ [] (const he::async_action::context&) { return true; } } };
+        auto instance{ std::make_shared<he::async_action>( [] (const he::async_action::context&) { return true; } ) };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()).begin };
+        auto& node{ instance->translate_into_graph(graph->root()).start };
 
         REQUIRE(node.mode == he::exec::launch_policy::async);
     }
@@ -38,15 +39,15 @@ TEST_CASE("async_action")
         auto ran{ false };
 
         auto instance{
-            he::async_action{ [&ran] (const he::async_action::context&)
+            std::make_shared<he::async_action>( [&ran] (const he::async_action::context&)
             {
                 ran = true;
                 return true;
-            } }
+            } )
         };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()).begin };
+        auto& node{ instance->translate_into_graph(graph->root()).start };
 
         std::ignore = node.definition.try_execute(std::stop_token{});
 
@@ -56,10 +57,10 @@ TEST_CASE("async_action")
 
     SECTION("reports failure")
     {
-        auto instance{ he::async_action{ [] (const he::async_action::context&) { return false; } } };
+        auto instance{ std::make_shared<he::async_action>( [] (const he::async_action::context&) { return false; } ) };
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
-        auto& node{ instance.translate_into_graph(graph->root()).begin };
+        auto& node{ instance->translate_into_graph(graph->root()).start };
 
         std::ignore = node.definition.try_execute(std::stop_token{});
 
@@ -90,7 +91,7 @@ TEST_CASE("async_action cancel")
             } }
         };
 
-        auto token{ std::move(instance).run() };
+        auto token{ he::run(std::move(instance)) };
 
         while (!started)
         {

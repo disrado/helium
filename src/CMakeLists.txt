@@ -26,12 +26,14 @@ set(helium_headers
     core/execution/action/async_action.hpp
     core/execution/action/sequential_composite.hpp
     core/execution/action/parallel_composite.hpp
+    core/execution/run.hpp
     core/execution/defs.hpp
     core/execution/dispatcher.hpp
     core/execution/thread_pool.hpp
     core/execution/thread_dispatcher.hpp
     core/execution/scheduler.hpp
     core/execution/task_graph.hpp
+    core/execution/task_node.hpp
     systems/logging.hpp
     systems/system_base.hpp
     systems/root_system.hpp)
@@ -42,10 +44,12 @@ set(helium_sources
     core/execution/action/async_action.cpp
     core/execution/action/sequential_composite.cpp
     core/execution/action/parallel_composite.cpp
+    core/execution/run.cpp
     core/execution/thread_pool.cpp
     core/execution/thread_dispatcher.cpp
     core/execution/scheduler.cpp
     core/execution/task_graph.cpp
+    core/execution/task_node.cpp
     systems/logging.cpp
     systems/system_base.cpp)
 
