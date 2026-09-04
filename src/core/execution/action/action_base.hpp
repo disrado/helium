@@ -82,13 +82,13 @@ class action_base: public basic_action
 public:
     using basic_action::basic_action;
 
-    auto then(action_like auto next) -> t&&;
-    auto otherwise(action_like auto next) -> t&&;
+    auto and_then(action_like auto next) -> t&&;
+    auto or_else(action_like auto next) -> t&&;
 };
 
 
 template <typename t>
-auto action_base<t>::then(action_like auto next) -> t&&
+auto action_base<t>::and_then(action_like auto next) -> t&&
 {
     store_and_then(std::make_shared<decltype(next)>(std::move(next)));
 
@@ -97,7 +97,7 @@ auto action_base<t>::then(action_like auto next) -> t&&
 
 
 template <typename t>
-auto action_base<t>::otherwise(action_like auto next) -> t&&
+auto action_base<t>::or_else(action_like auto next) -> t&&
 {
     store_or_else(std::make_shared<decltype(next)>(std::move(next)));
 

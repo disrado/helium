@@ -60,13 +60,13 @@ TEST_CASE("action")
 
 TEST_CASE("action chaining")
 {
-    SECTION("then runs on success")
+    SECTION("and_then runs on success")
     {
         auto then_ran{ false };
 
         auto root{ std::make_shared<he::action>( [] (const he::action::context&) { return true; } ) };
 
-        root->then(
+        root->and_then(
             he::action{ [&then_ran] (const he::action::context&)
             {
                 then_ran = true;
@@ -79,13 +79,13 @@ TEST_CASE("action chaining")
         REQUIRE(then_ran);
     }
 
-    SECTION("otherwise runs on failure")
+    SECTION("or_else runs on failure")
     {
         auto otherwise_ran{ false };
 
         auto root{ std::make_shared<he::action>( [] (const he::action::context&) { return false; } ) };
 
-        root->otherwise(
+        root->or_else(
             he::action{ [&otherwise_ran] (const he::action::context&)
             {
                 otherwise_ran = true;
@@ -98,13 +98,13 @@ TEST_CASE("action chaining")
         REQUIRE(otherwise_ran);
     }
 
-    SECTION("then skipped on failure")
+    SECTION("and_then skipped on failure")
     {
         auto then_ran{ false };
 
         auto root{ std::make_shared<he::action>( [] (const he::action::context&) { return false; } ) };
 
-        root->then(
+        root->and_then(
             he::action{ [&then_ran] (const he::action::context&)
             {
                 then_ran = true;
@@ -117,13 +117,13 @@ TEST_CASE("action chaining")
         REQUIRE_FALSE(then_ran);
     }
 
-    SECTION("otherwise skipped on success")
+    SECTION("or_else skipped on success")
     {
         auto otherwise_ran{ false };
 
         auto root{ std::make_shared<he::action>( [] (const he::action::context&) { return true; } ) };
 
-        root->otherwise(
+        root->or_else(
             he::action{ [&otherwise_ran] (const he::action::context&)
             {
                 otherwise_ran = true;
@@ -143,13 +143,13 @@ TEST_CASE("action chaining")
 
         auto root{ std::make_shared<he::action>( [] (const he::action::context&) { return true; } ) };
 
-        root->then(
+        root->and_then(
             he::action{ [&then_ran] (const he::action::context&)
             {
                 then_ran = true;
                 return true;
             } });
-        root->otherwise(
+        root->or_else(
             he::action{ [&otherwise_ran] (const he::action::context&)
             {
                 otherwise_ran = true;
@@ -175,13 +175,13 @@ TEST_CASE("action chaining")
                 order += "a";
                 return true;
             } )
-            ->then(
+            ->and_then(
                 he::action{ [&order] (const he::action::context&)
                 {
                     order += "b";
                     return true;
                 } }
-                .then(
+                .and_then(
                     he::action{ [&order] (const he::action::context&)
                     {
                         order += "c";
@@ -212,7 +212,7 @@ TEST_CASE("action chaining")
 
         graph->activate(
             std::make_shared<he::action>( [] (const he::action::context&) { return true; } )
-            ->then(custom_action{})
+            ->and_then(custom_action{})
             .translate_into_graph(graph->root()).start);
 
         REQUIRE(custom_execute_ran);
@@ -228,7 +228,7 @@ TEST_CASE("action chaining")
             std::make_shared<he::action>( [] (const he::action::context&) { return true; } )
         };
 
-        root->then(
+        root->and_then(
             he::action{
                 [&received] (const he::action::context& ctx)
                 {

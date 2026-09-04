@@ -75,7 +75,7 @@ TEST_CASE("sequential_composite")
                     he::action{ [] (const he::action::context&) { return false; } },
                     he::action{ [] (const he::action::context&) { return true; } }
                 }
-                .otherwise(he::action{ [&failed] (const he::action::context&)
+                .or_else(he::action{ [&failed] (const he::action::context&)
                 {
                     failed = true;
                     return true;
@@ -151,7 +151,7 @@ TEST_CASE("sequential_composite")
                     he::action{ [] (const he::action::context&) { return true; } },
                     he::action{ [] (const he::action::context&) { return true; } }
                 }
-                .then(he::action{ [&succeeded] (const he::action::context&)
+                .and_then(he::action{ [&succeeded] (const he::action::context&)
                 {
                     succeeded = true;
                     return true;
@@ -171,7 +171,7 @@ TEST_CASE("sequential_composite")
                     he::action{ [] (const he::action::context&) { return true; } },
                     he::action{ [] (const he::action::context&) { return false; } }
                 }
-                .otherwise(he::action{ [&failed] (const he::action::context&)
+                .or_else(he::action{ [&failed] (const he::action::context&)
                 {
                     failed = true;
                     return true;
@@ -185,7 +185,7 @@ TEST_CASE("sequential_composite")
 
 TEST_CASE("sequential_composite chaining")
 {
-    SECTION("then runs when composite succeeds")
+    SECTION("and_then runs when composite succeeds")
     {
         auto then_ran{ false };
 
@@ -194,7 +194,7 @@ TEST_CASE("sequential_composite chaining")
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return true; } }
                 }
-                .then(
+                .and_then(
                     he::action{ [&then_ran] (const he::action::context&)
                     {
                         then_ran = true;
@@ -205,7 +205,7 @@ TEST_CASE("sequential_composite chaining")
         REQUIRE(then_ran);
     }
 
-    SECTION("otherwise runs when composite fails")
+    SECTION("or_else runs when composite fails")
     {
         auto otherwise_ran{ false };
 
@@ -214,7 +214,7 @@ TEST_CASE("sequential_composite chaining")
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return false; } }
                 }
-                .otherwise(
+                .or_else(
                     he::action{ [&otherwise_ran] (const he::action::context&)
                     {
                         otherwise_ran = true;
@@ -225,7 +225,7 @@ TEST_CASE("sequential_composite chaining")
         REQUIRE(otherwise_ran);
     }
 
-    SECTION("otherwise runs on mid-chain failure")
+    SECTION("or_else runs on mid-chain failure")
     {
         auto otherwise_ran{ false };
 
@@ -236,7 +236,7 @@ TEST_CASE("sequential_composite chaining")
                     he::action{ [] (const he::action::context&) { return false; } },
                     he::action{ [] (const he::action::context&) { return true; } }
                 }
-                .otherwise(
+                .or_else(
                     he::action{ [&otherwise_ran] (const he::action::context&)
                     {
                         otherwise_ran = true;
@@ -247,7 +247,7 @@ TEST_CASE("sequential_composite chaining")
         REQUIRE(otherwise_ran);
     }
 
-    SECTION("context propagates to then branch")
+    SECTION("context propagates to and_then branch")
     {
         auto received{ std::optional<std::string>{} };
 
@@ -258,7 +258,7 @@ TEST_CASE("sequential_composite chaining")
                 he::sequential_composite{
                     he::action{ [] (const he::action::context&) { return true; } }
                 }
-                .then(
+                .and_then(
                     he::action{ [&received] (const he::action::context& ctx)
                     {
                         if (ctx.contains("label"))
@@ -395,7 +395,7 @@ TEST_CASE("sequential_composite cancel")
         he::exec::scheduler::instance().process();
     }
 
-    SECTION("mid-flight cancel with then/otherwise does not crash or clobber state")
+    SECTION("mid-flight cancel with and_then/or_else does not crash or clobber state")
     {
         auto started{ std::atomic<bool>{ false } };
         auto worker_done{ std::atomic<bool>{ false } };
@@ -418,13 +418,13 @@ TEST_CASE("sequential_composite cancel")
                         return false;
                     } }
                 }
-                .then(
+                .and_then(
                     he::action{ [&then_ran] (const he::action::context&)
                     {
                         then_ran = true;
                         return true;
                     } })
-                .otherwise(
+                .or_else(
                     he::action{ [&otherwise_ran] (const he::action::context&)
                     {
                         otherwise_ran = true;

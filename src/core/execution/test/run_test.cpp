@@ -99,7 +99,7 @@ TEST_CASE("run")
         auto token{
             he::run(
                 he::async_action{ [] (const he::async_action::context&) { return true; } }
-                .then(
+                .and_then(
                     he::action{ [&done] (const he::action::context&)
                     {
                         done = true;
@@ -216,35 +216,38 @@ TEST_CASE("run example")
             he::run(
                 he::sequential_composite{
                     he::action{ [] (const auto&) { return true; } }
-                        .then(he::action{ [] (const auto&) { return true; } }),
+                    .and_then(he::action{ [] (const auto&) { return true; } }),
                     he::async_action{ [] (const he::async_action::context&) { return true; } }
-                        .then(he::sequential_composite{
+                    .and_then(
+                        he::sequential_composite{
                             he::async_action{ [] (const he::async_action::context&) { return true; } },
                             he::async_action{ [] (const he::async_action::context&) { return true; } }
-                                .then(plain_action{}
-                                    .then(he::parallel_composite{
+                            .and_then(
+                                plain_action{}
+                                .and_then(
+                                    he::parallel_composite{
                                         he::async_action{ [] (const he::async_action::context&) { return true; } },
                                         he::async_action{ [] (const he::async_action::context&) { return true; } },
                                         plain_action{},
                                         he::async_action{ [] (const he::async_action::context&) { return true; } }
-                                            .then(plain_action{}),
+                                        .and_then(plain_action{}),
                                         plain_action{},
                                         plain_action{}
                                     }))
-                                .otherwise(label_reader_action{}),
+                            .or_else(label_reader_action{}),
                             plain_action{},
                             he::async_action{ [] (const he::async_action::context&) { return true; } },
                             plain_action{}
                         }),
                     label_reader_action{}
                 }
-                .then(
+                .and_then(
                     he::action{ [&] (const auto&)
                     {
                         done = true;
                         return true;
                     } })
-                .otherwise(
+                .or_else(
                     he::action{ [&] (const auto&)
                     {
                         done = true;

@@ -60,7 +60,7 @@ auto parallel_composite::setup_join(exec::task_node& self_node, exec::task_node&
     auto entries{ std::vector<exec::graph_segment>{} };
     entries.reserve(_steps.size());
 
-    for (auto& step: _steps)
+    for (auto& step : _steps)
     {
         entries.push_back(step->translate_into_graph(self_node));
     }
@@ -69,7 +69,7 @@ auto parallel_composite::setup_join(exec::task_node& self_node, exec::task_node&
     state->pending = _steps.size();
     state->step_starts.reserve(entries.size());
 
-    for (auto& entry: entries)
+    for (auto& entry : entries)
     {
         state->step_starts.push_back(&entry.start);
     }

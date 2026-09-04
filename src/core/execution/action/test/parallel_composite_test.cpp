@@ -53,7 +53,7 @@ TEST_CASE("parallel_composite")
                     he::action{ [] (const he::action::context&) { return true; } },
                     he::action{ [] (const he::action::context&) { return true; } }
                 }
-                .then(
+                .and_then(
                     he::action{ [&succeeded] (const he::action::context&)
                     {
                         succeeded = true;
@@ -85,7 +85,7 @@ TEST_CASE("parallel_composite")
                         return true;
                     } }
                 }
-                .otherwise(
+                .or_else(
                     he::action{ [&failed] (const he::action::context&)
                     {
                         failed = true;
@@ -134,7 +134,7 @@ TEST_CASE("parallel_composite nesting")
 
 TEST_CASE("parallel_composite chaining")
 {
-    SECTION("then runs when all steps succeed")
+    SECTION("and_then runs when all steps succeed")
     {
         auto then_ran{ false };
 
@@ -144,7 +144,7 @@ TEST_CASE("parallel_composite chaining")
                     he::action{ [] (const he::action::context&) { return true; } },
                     he::action{ [] (const he::action::context&) { return true; } }
                 }
-                .then(
+                .and_then(
                     he::action{ [&then_ran] (const he::action::context&)
                     {
                         then_ran = true;
@@ -155,7 +155,7 @@ TEST_CASE("parallel_composite chaining")
         REQUIRE(then_ran);
     }
 
-    SECTION("otherwise runs when any step fails")
+    SECTION("or_else runs when any step fails")
     {
         auto otherwise_ran{ false };
 
@@ -165,7 +165,7 @@ TEST_CASE("parallel_composite chaining")
                     he::action{ [] (const he::action::context&) { return true; } },
                     he::action{ [] (const he::action::context&) { return false; } }
                 }
-                .otherwise(
+                .or_else(
                     he::action{ [&otherwise_ran] (const he::action::context&)
                     {
                         otherwise_ran = true;
@@ -189,7 +189,7 @@ TEST_CASE("parallel_composite chaining")
                     context_action{ first_context },
                     context_action{ second_context }
                 }
-                .then(
+                .and_then(
                     he::action{ [&received] (const he::action::context& ctx)
                     {
                         received = ctx;
@@ -214,7 +214,7 @@ TEST_CASE("parallel_composite chaining")
                     context_action{ first_context },
                     context_action{ second_context }
                 }
-                .then(
+                .and_then(
                     he::action{ [&received] (const he::action::context& ctx)
                     {
                         received = ctx;
@@ -237,7 +237,7 @@ TEST_CASE("parallel_composite chaining")
                     context_action{ he::action::context{ { "first", std::string{ "a" } } } },
                     context_action{ he::action::context{ { "second", std::string{ "b" } } } }
                 }
-                .then(
+                .and_then(
                     he::action{ [&received] (const he::action::context& ctx)
                     {
                         received = ctx;
@@ -275,7 +275,7 @@ TEST_CASE("parallel_composite with async step")
                         return true;
                     } }
                 }
-                .then(
+                .and_then(
                     he::action{ [&succeeded] (const he::action::context&)
                     {
                         succeeded = true;
@@ -335,7 +335,7 @@ TEST_CASE("parallel_composite cancel")
         he::exec::scheduler::instance().process();
     }
 
-    SECTION("mid-flight cancel with then/otherwise does not crash or clobber state")
+    SECTION("mid-flight cancel with and_then/or_else does not crash or clobber state")
     {
         auto started{ std::atomic<bool>{ false } };
         auto worker_done{ std::atomic<bool>{ false } };
@@ -358,13 +358,13 @@ TEST_CASE("parallel_composite cancel")
                         return false;
                     } }
                 }
-                .then(
+                .and_then(
                     he::action{ [&then_ran] (const he::action::context&)
                     {
                         then_ran = true;
                         return true;
                     } })
-                .otherwise(
+                .or_else(
                     he::action{ [&otherwise_ran] (const he::action::context&)
                     {
                         otherwise_ran = true;
