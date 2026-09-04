@@ -19,11 +19,6 @@
 namespace
 {
 
-// contributes its own entries into whatever context already propagated onto this node, standing
-// in for "whatever this step contributed" since actions no longer carry per-instance seed state
-// to pre-fill it with. merge_context(), not set_context(): this step's context is what the chain
-// handed it (root-seeded or inherited from a predecessor) — replacing it outright would silently
-// discard that instead of adding to it
 class context_action final: public he::action
 {
 public:

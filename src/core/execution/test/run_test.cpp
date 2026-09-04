@@ -138,12 +138,6 @@ TEST_CASE("run")
             while (!started)
             {
             }
-
-            // token destroyed here, no cancel() — the async lambda above is still mid-sleep,
-            // genuinely in flight. fire-and-forget is the documented default: this must not
-            // crash or corrupt anything even though nothing observes the outcome anymore. this
-            // is the exact scenario the anchor mechanism (and its shared_ptr-per-action
-            // replacement) exists to make safe.
         }
 
         while (!finished)
