@@ -2,6 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <any>
 #include <memory>
 #include <string>
 
@@ -196,5 +197,67 @@ TEST_CASE("task_graph node activate")
         graph->root().activate();
 
         REQUIRE(ran);
+    }
+}
+
+
+TEST_CASE("task_node context")
+{
+    SECTION("empty by default")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+
+        REQUIRE_FALSE(graph->root().get_context().has_value());
+    }
+
+    SECTION("set_context stores")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+
+        graph->root().set_context(he::exec::action_context{ { "key", std::string{ "value" } } });
+
+        REQUIRE(graph->root().get_context().has_value());
+        REQUIRE(std::any_cast<std::string>(graph->root().get_context().value().at("key")) == "value");
+    }
+
+    SECTION("merge nullopt no-op")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+
+        graph->root().set_context(he::exec::action_context{ { "key", std::string{ "value" } } });
+        graph->root().merge_context(std::nullopt);
+
+        REQUIRE(std::any_cast<std::string>(graph->root().get_context().value().at("key")) == "value");
+    }
+
+    SECTION("merge into empty")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+
+        graph->root().merge_context(he::exec::action_context{ { "key", std::string{ "value" } } });
+
+        REQUIRE(graph->root().get_context().has_value());
+        REQUIRE(std::any_cast<std::string>(graph->root().get_context().value().at("key")) == "value");
+    }
+
+    SECTION("merge adds key")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+
+        graph->root().set_context(he::exec::action_context{ { "first", std::string{ "a" } } });
+        graph->root().merge_context(he::exec::action_context{ { "second", std::string{ "b" } } });
+
+        REQUIRE(std::any_cast<std::string>(graph->root().get_context().value().at("first")) == "a");
+        REQUIRE(std::any_cast<std::string>(graph->root().get_context().value().at("second")) == "b");
+    }
+
+    SECTION("merge overwrites key")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+
+        graph->root().set_context(he::exec::action_context{ { "key", std::string{ "old" } } });
+        graph->root().merge_context(he::exec::action_context{ { "key", std::string{ "new" } } });
+
+        REQUIRE(std::any_cast<std::string>(graph->root().get_context().value().at("key")) == "new");
     }
 }

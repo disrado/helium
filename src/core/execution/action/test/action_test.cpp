@@ -1,3 +1,4 @@
+#include "core/delegate/delegate.hpp"
 #include "core/execution/action/action.hpp"
 #include "core/execution/task_graph.hpp"
 
@@ -271,5 +272,51 @@ TEST_CASE("action cancel")
         graph->cancel();
 
         REQUIRE(node.state == he::action::state::succeeded);
+    }
+}
+
+
+TEST_CASE("action from delegate")
+{
+    SECTION("without stop_token")
+    {
+        auto ran{ false };
+
+        auto definition{
+            he::delegate<bool(const he::action::context&)>{
+                [&ran] (const he::action::context&)
+                {
+                    ran = true;
+                    return true;
+                } }
+        };
+
+        auto instance{ std::make_shared<he::action>(std::move(definition)) };
+
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(instance->translate_into_graph(graph->root()).start);
+
+        REQUIRE(ran);
+    }
+
+    SECTION("with stop_token")
+    {
+        auto ran{ false };
+
+        auto definition{
+            he::delegate<bool(const he::action::context&, std::stop_token)>{
+                [&ran] (const he::action::context&, std::stop_token)
+                {
+                    ran = true;
+                    return true;
+                } }
+        };
+
+        auto instance{ std::make_shared<he::action>(std::move(definition)) };
+
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        graph->activate(instance->translate_into_graph(graph->root()).start);
+
+        REQUIRE(ran);
     }
 }
