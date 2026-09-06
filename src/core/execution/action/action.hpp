@@ -13,7 +13,7 @@ public:
     using context = exec::basic_action::context;
     using action_base::action_base;
 
-private:
+protected:
     auto setup_node(exec::task_node& self_node) -> exec::task_node& override;
 };
 

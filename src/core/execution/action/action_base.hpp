@@ -75,12 +75,11 @@ basic_action::basic_action(callable_t definition)
 {
     if constexpr (std::is_invocable_r_v<bool, callable_t, const basic_action::context&, std::stop_token>)
     {
-        _definition = delegate<bool(const context&, std::stop_token)>{ std::move(definition) };
+        _definition = delegate{ std::move(definition) };
     }
     else
     {
-        _definition = delegate<bool(const context&, std::stop_token)>{
-            [fn{ std::move(definition) }] (const context& ctx, std::stop_token) mutable { return fn(ctx); } };
+        _definition = delegate{[fn{ std::move(definition) }] (const context& ctx, std::stop_token) mutable { return fn(ctx); } };
     }
 }
 
@@ -99,9 +98,7 @@ public:
 template <typename t>
 auto action_base<t>::and_then(action_like auto next) -> t&&
 {
-    add_link(
-        delegate<bool(state)>{ [] (state s) { return s == state::succeeded; } },
-        std::make_shared<decltype(next)>(std::move(next)));
+    add_link(delegate{ [] (state s) { return s == state::succeeded; } }, std::make_shared<decltype(next)>(std::move(next)));
 
     return std::move(static_cast<t&>(*this));
 }
@@ -110,9 +107,7 @@ auto action_base<t>::and_then(action_like auto next) -> t&&
 template <typename t>
 auto action_base<t>::or_else(action_like auto next) -> t&&
 {
-    add_link(
-        delegate<bool(state)>{ [] (state s) { return s == state::failed; } },
-        std::make_shared<decltype(next)>(std::move(next)));
+    add_link(delegate{ [] (state s) { return s == state::failed; } }, std::make_shared<decltype(next)>(std::move(next)));
 
     return std::move(static_cast<t&>(*this));
 }
