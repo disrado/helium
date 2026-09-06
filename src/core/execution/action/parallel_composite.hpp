@@ -41,11 +41,9 @@ private:
     auto on_self_finished(
         exec::task_node& self_node,
         const std::vector<exec::graph_segment>& entries,
-        const exec::task_node& join_node) -> void;
+        exec::task_node& join_node) -> void;
 
     auto resolve_join(exec::task_node& self_node, exec::task_node& join_node, const join_state& state) -> void;
-
-    static auto resolve_link(exec::task_node& self_node, const std::vector<exec::task_node*>& step_starts) -> void;
 
 private:
     std::vector<std::shared_ptr<basic_action>> _steps;

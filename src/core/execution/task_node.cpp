@@ -13,6 +13,21 @@ task_node::task_node(task_graph& graph, task_node* parent)
 }
 
 
+auto task_node::resolve_links() -> void
+{
+    for (auto& entry : _links)
+    {
+        if (entry.condition.try_execute(state).value_or(false))
+        {
+            entry.target->set_context(get_context());
+            entry.target->activate();
+
+            return;
+        }
+    }
+}
+
+
 auto task_node::add_child() -> task_node&
 {
     return *_children.emplace_back(std::make_unique<task_node>(_graph, this));
@@ -67,6 +82,18 @@ auto task_node::merge_context(std::optional<action_context> new_entries) -> void
     {
         _context.value()[key] = std::move(value);
     }
+}
+
+
+auto task_node::add_link(link entry) -> void
+{
+    _links.push_back(std::move(entry));
+}
+
+
+auto task_node::get_links() const -> const std::vector<link>&
+{
+    return _links;
 }
 
 }

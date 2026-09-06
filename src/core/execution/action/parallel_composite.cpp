@@ -13,6 +13,8 @@ auto parallel_composite::setup_node(exec::task_node& self_node) -> exec::task_no
 
     setup_join_node(self_node, join_node);
 
+    join_node.post_execution.bind([&join_node] (exec::execution_status) { join_node.resolve_links(); });
+
     return join_node;
 }
 
@@ -79,6 +81,7 @@ auto parallel_composite::on_step_finished(
     if (self_node.cancel_requested)
     {
         self_node.state = exec::action_state::cancelled;
+        join_node.state = exec::action_state::cancelled;
 
         std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
     }
@@ -92,11 +95,12 @@ auto parallel_composite::on_step_finished(
 auto parallel_composite::on_self_finished(
     exec::task_node& self_node,
     const std::vector<exec::graph_segment>& entries,
-    const exec::task_node& join_node) -> void
+    exec::task_node& join_node) -> void
 {
     if (self_node.cancel_requested)
     {
         self_node.state = exec::action_state::cancelled;
+        join_node.state = exec::action_state::cancelled;
 
         std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
 
@@ -114,29 +118,14 @@ auto parallel_composite::on_self_finished(
 auto parallel_composite::resolve_join(exec::task_node& self_node, exec::task_node& join_node, const join_state& state) -> void
 {
     self_node.state = state.any_failed ? exec::action_state::failed : exec::action_state::succeeded;
+    join_node.state = self_node.state;
 
-    resolve_link(self_node, state.step_starts);
+    for (auto* begin : state.step_starts)
+    {
+        join_node.merge_context(begin->get_context());
+    }
 
     std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
-}
-
-
-auto parallel_composite::resolve_link(exec::task_node& self_node, const std::vector<exec::task_node*>& step_starts) -> void
-{
-    for (auto& entry : self_node.links)
-    {
-        if (entry.condition.try_execute(self_node.state).value_or(false))
-        {
-            for (auto* begin : step_starts)
-            {
-                entry.target->merge_context(begin->get_context());
-            }
-
-            entry.target->activate();
-
-            break;
-        }
-    }
 }
 
 }

@@ -15,8 +15,6 @@ public:
 
 private:
     auto setup_node(exec::task_node& self_node) -> exec::task_node& override;
-
-    static auto resolve_link(exec::task_node& self_node) -> void;
 };
 
 }

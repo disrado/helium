@@ -28,8 +28,13 @@ public:
 public:
     explicit task_node(task_graph& graph, task_node* parent = nullptr);
 
+    auto resolve_links() -> void;
+
     auto add_child() -> task_node&;
     auto activate() -> void;
+
+    auto add_link(link entry) -> void;
+    auto get_links() const -> const std::vector<link>&;
 
     auto get_parent() const -> task_node*;
 
@@ -51,14 +56,14 @@ public:
 
     bool cancel_requested{ false };
 
-    std::vector<link> links;
-
 private:
+    std::vector<std::unique_ptr<task_node>> _children;
+    std::vector<link> _links;
+
     std::optional<action_context> _context;
 
     task_graph& _graph;
     task_node* _parent;
-    std::vector<std::unique_ptr<task_node>> _children;
 };
 
 }

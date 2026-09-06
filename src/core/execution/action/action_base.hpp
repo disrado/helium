@@ -58,7 +58,7 @@ protected:
     auto add_link(delegate<bool(state)> condition, std::shared_ptr<basic_action> next_action) -> void;
 
 private:
-    auto translate_links(task_node& self_node) -> void;
+    auto translate_links(task_node& self_node, task_node& end_node) -> void;
 
 protected:
     std::vector<link> _links;
