@@ -18,6 +18,14 @@ class task_graph;
 class task_node final
 {
 public:
+    struct link final
+    {
+    public:
+        delegate<bool(action_state)> condition;
+        task_node* target{ nullptr };
+    };
+
+public:
     explicit task_node(task_graph& graph, task_node* parent = nullptr);
 
     auto add_child() -> task_node&;
@@ -43,8 +51,7 @@ public:
 
     bool cancel_requested{ false };
 
-    task_node* then_node{ nullptr };
-    task_node* else_node{ nullptr };
+    std::vector<link> links;
 
 private:
     std::optional<action_context> _context;

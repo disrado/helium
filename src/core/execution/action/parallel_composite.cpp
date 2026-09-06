@@ -7,17 +7,13 @@
 namespace he
 {
 
-auto parallel_composite::translate_into_graph(exec::task_node& parent) -> exec::graph_segment
+auto parallel_composite::setup_node(exec::task_node& self_node) -> exec::task_node&
 {
-    auto& self_node{ parent.add_child() };
     auto& join_node{ self_node.add_child() };
-
-    self_node.then_node = _then_action ? &_then_action->translate_into_graph(self_node).start : nullptr;
-    self_node.else_node = _else_action ? &_else_action->translate_into_graph(self_node).start : nullptr;
 
     setup_join_node(self_node, join_node);
 
-    return exec::graph_segment{ .start{ self_node }, .end{ join_node } };
+    return join_node;
 }
 
 
@@ -119,17 +115,28 @@ auto parallel_composite::resolve_join(exec::task_node& self_node, exec::task_nod
 {
     self_node.state = state.any_failed ? exec::action_state::failed : exec::action_state::succeeded;
 
-    if (auto* const target{ state.any_failed ? self_node.else_node : self_node.then_node })
-    {
-        for (auto* begin : state.step_starts)
-        {
-            target->merge_context(begin->get_context());
-        }
-
-        target->activate();
-    }
+    resolve_link(self_node, state.step_starts);
 
     std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
+}
+
+
+auto parallel_composite::resolve_link(exec::task_node& self_node, const std::vector<exec::task_node*>& step_starts) -> void
+{
+    for (auto& entry : self_node.links)
+    {
+        if (entry.condition.try_execute(self_node.state).value_or(false))
+        {
+            for (auto* begin : step_starts)
+            {
+                entry.target->merge_context(begin->get_context());
+            }
+
+            entry.target->activate();
+
+            break;
+        }
+    }
 }
 
 }

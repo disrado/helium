@@ -31,15 +31,30 @@ auto basic_action::execute(task_node& self_node, std::stop_token token) -> void
 }
 
 
-auto basic_action::store_and_then(std::shared_ptr<basic_action> next_action) -> void
+auto basic_action::translate_into_graph(task_node& parent) -> graph_segment
 {
-    _then_action = std::move(next_action);
+    auto& self_node{ parent.add_child() };
+
+    translate_links(self_node);
+
+    auto& end_node{ setup_node(self_node) };
+
+    return graph_segment{ .start{ self_node }, .end{ end_node } };
 }
 
 
-auto basic_action::store_or_else(std::shared_ptr<basic_action> next_action) -> void
+auto basic_action::add_link(delegate<bool(state)> condition, std::shared_ptr<basic_action> next_action) -> void
 {
-    _else_action = std::move(next_action);
+    _links.push_back({ std::move(condition), std::move(next_action) });
+}
+
+
+auto basic_action::translate_links(task_node& self_node) -> void
+{
+    for (auto& entry : _links)
+    {
+        self_node.links.push_back({ entry.condition, &entry.next_action->translate_into_graph(self_node).start });
+    }
 }
 
 }

@@ -18,9 +18,9 @@ public:
         requires (sizeof...(action_ts) > 0) && (exec::action_like<std::decay_t<action_ts>> && ...)
     explicit sequential_composite(action_ts&&... steps);
 
-    auto translate_into_graph(exec::task_node& parent) -> exec::graph_segment override;
-
 private:
+    auto setup_node(exec::task_node& self_node) -> exec::task_node& override;
+
     auto setup_sequence(exec::task_node& self_node, exec::task_node& completion_node) -> exec::task_node*;
 
     auto translate_steps(exec::task_node& self_node) -> std::vector<exec::graph_segment>;
@@ -41,6 +41,8 @@ private:
         exec::task_node* step_start,
         exec::task_node* next_segment_start,
         const exec::task_node& completion_node) -> void;
+
+    static auto resolve_link(exec::task_node& self_node, exec::task_node* step_start) -> void;
 
 private:
     std::vector<std::shared_ptr<basic_action>> _steps;

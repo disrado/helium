@@ -14,21 +14,21 @@ namespace he
 
 class parallel_composite final: public exec::action_base<parallel_composite>
 {
+private:
+    struct join_state final
+    {
+        std::size_t pending;
+        bool any_failed{ false };
+        std::vector<exec::task_node*> step_starts;
+    };
+
 public:
     template <typename... action_ts>
         requires (sizeof...(action_ts) > 0) && (exec::action_like<std::decay_t<action_ts>> && ...)
     explicit parallel_composite(action_ts&&... steps);
 
-    auto translate_into_graph(exec::task_node& parent) -> exec::graph_segment override;
-
 private:
-    struct join_state final
-    {
-    public:
-        std::size_t pending;
-        bool any_failed{ false };
-        std::vector<exec::task_node*> step_starts;
-    };
+    auto setup_node(exec::task_node& self_node) -> exec::task_node& override;
 
     auto setup_join_node(exec::task_node& self_node, exec::task_node& join_node) -> void;
 
@@ -44,6 +44,8 @@ private:
         const exec::task_node& join_node) -> void;
 
     auto resolve_join(exec::task_node& self_node, exec::task_node& join_node, const join_state& state) -> void;
+
+    static auto resolve_link(exec::task_node& self_node, const std::vector<exec::task_node*>& step_starts) -> void;
 
 private:
     std::vector<std::shared_ptr<basic_action>> _steps;

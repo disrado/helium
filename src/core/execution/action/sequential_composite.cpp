@@ -4,13 +4,9 @@
 namespace he
 {
 
-auto sequential_composite::translate_into_graph(exec::task_node& parent) -> exec::graph_segment
+auto sequential_composite::setup_node(exec::task_node& self_node) -> exec::task_node&
 {
-    auto& self_node{ parent.add_child() };
     auto& completion_node{ self_node.add_child() };
-
-    self_node.then_node = _then_action ? &_then_action->translate_into_graph(self_node).start : nullptr;
-    self_node.else_node = _else_action ? &_else_action->translate_into_graph(self_node).start : nullptr;
 
     auto* const first_entry{ setup_sequence(self_node, completion_node) };
 
@@ -25,7 +21,7 @@ auto sequential_composite::translate_into_graph(exec::task_node& parent) -> exec
             self->on_action_finished(self_node, first_entry, completion_node);
         });
 
-    return exec::graph_segment{ .start{ self_node }, .end{ completion_node } };
+    return completion_node;
 }
 
 
@@ -113,39 +109,33 @@ auto sequential_composite::on_step_finished(
         return;
     }
 
-    const auto advance_to{
-        [step_start] (exec::task_node* target)
-        {
-            if (target)
-            {
-                target->set_context(step_start->get_context());
-                target->activate();
-            }
-        }
-    };
-
     if (step_start->state == exec::action_state::succeeded && next_segment_start)
     {
-        advance_to(next_segment_start);
+        next_segment_start->set_context(step_start->get_context());
+        next_segment_start->activate();
 
         return;
     }
 
-    if (step_start->state == exec::action_state::succeeded)
+    self_node.state = step_start->state;
+
+    resolve_link(self_node, step_start);
+
+    std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);
+}
+
+
+auto sequential_composite::resolve_link(exec::task_node& self_node, exec::task_node* step_start) -> void
+{
+    for (auto& entry : self_node.links)
     {
-        self_node.state = exec::action_state::succeeded;
+        if (entry.condition.try_execute(self_node.state).value_or(false))
+        {
+            entry.target->set_context(step_start->get_context());
+            entry.target->activate();
 
-        advance_to(self_node.then_node);
-
-        std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);
-    }
-    else if (step_start->state == exec::action_state::failed)
-    {
-        self_node.state = exec::action_state::failed;
-
-        advance_to(self_node.else_node);
-
-        std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);
+            break;
+        }
     }
 }
 

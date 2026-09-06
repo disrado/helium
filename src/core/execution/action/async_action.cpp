@@ -4,17 +4,12 @@
 namespace he
 {
 
-auto async_action::translate_into_graph(exec::task_node& parent) -> exec::graph_segment
+auto async_action::setup_node(exec::task_node& self_node) -> exec::task_node&
 {
-    auto& self_node{ parent.add_child() };
-
     self_node.mode = exec::launch_policy::async;
     self_node.definition = exec::task_definition{
         [self{ shared_from_this() }, &self_node] (std::stop_token token) { self->execute(self_node, std::move(token)); }
     };
-
-    self_node.then_node = _then_action ? &_then_action->translate_into_graph(self_node).start : nullptr;
-    self_node.else_node = _else_action ? &_else_action->translate_into_graph(self_node).start : nullptr;
 
     self_node.post_execution.bind(
         [&self_node] (exec::execution_status)
@@ -26,19 +21,25 @@ auto async_action::translate_into_graph(exec::task_node& parent) -> exec::graph_
                 return;
             }
 
-            if (self_node.state == exec::action_state::succeeded && self_node.then_node)
-            {
-                self_node.then_node->set_context(self_node.get_context());
-                self_node.then_node->activate();
-            }
-            else if (self_node.state == exec::action_state::failed && self_node.else_node)
-            {
-                self_node.else_node->set_context(self_node.get_context());
-                self_node.else_node->activate();
-            }
+            resolve_link(self_node);
         });
 
-    return exec::graph_segment{ .start{ self_node }, .end{ self_node } };
+    return self_node;
+}
+
+
+auto async_action::resolve_link(exec::task_node& self_node) -> void
+{
+    for (auto& entry : self_node.links)
+    {
+        if (entry.condition.try_execute(self_node.state).value_or(false))
+        {
+            entry.target->set_context(self_node.get_context());
+            entry.target->activate();
+
+            break;
+        }
+    }
 }
 
 }

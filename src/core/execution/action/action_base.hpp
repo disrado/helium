@@ -7,6 +7,7 @@
 #include <memory>
 #include <stop_token>
 #include <type_traits>
+#include <vector>
 
 
 namespace he::exec
@@ -26,6 +27,12 @@ public:
     using state = action_state;
     using context = action_context;
 
+    struct link final
+    {
+        delegate<bool(state)> condition;
+        std::shared_ptr<basic_action> next_action;
+    };
+
 public:
     basic_action() = default;
 
@@ -44,15 +51,17 @@ public:
 
     virtual auto execute(task_node& self_node, std::stop_token token = {}) -> void;
 
-    virtual auto translate_into_graph(task_node& parent) -> graph_segment = 0;
+    auto translate_into_graph(task_node& parent) -> graph_segment;
 
 protected:
-    auto store_and_then(std::shared_ptr<basic_action> next_action) -> void;
-    auto store_or_else(std::shared_ptr<basic_action> next_action) -> void;
+    virtual auto setup_node(task_node& self_node) -> task_node& = 0;
+    auto add_link(delegate<bool(state)> condition, std::shared_ptr<basic_action> next_action) -> void;
+
+private:
+    auto translate_links(task_node& self_node) -> void;
 
 protected:
-    std::shared_ptr<basic_action> _then_action;
-    std::shared_ptr<basic_action> _else_action;
+    std::vector<link> _links;
 
 private:
     delegate<bool(const context&, std::stop_token)> _definition;
@@ -90,7 +99,9 @@ public:
 template <typename t>
 auto action_base<t>::and_then(action_like auto next) -> t&&
 {
-    store_and_then(std::make_shared<decltype(next)>(std::move(next)));
+    add_link(
+        delegate<bool(state)>{ [] (state s) { return s == state::succeeded; } },
+        std::make_shared<decltype(next)>(std::move(next)));
 
     return std::move(static_cast<t&>(*this));
 }
@@ -99,7 +110,9 @@ auto action_base<t>::and_then(action_like auto next) -> t&&
 template <typename t>
 auto action_base<t>::or_else(action_like auto next) -> t&&
 {
-    store_or_else(std::make_shared<decltype(next)>(std::move(next)));
+    add_link(
+        delegate<bool(state)>{ [] (state s) { return s == state::failed; } },
+        std::make_shared<decltype(next)>(std::move(next)));
 
     return std::move(static_cast<t&>(*this));
 }
