@@ -18,9 +18,10 @@ public:
         requires (sizeof...(action_ts) > 0) && (exec::action_like<std::decay_t<action_ts>> && ...)
     explicit sequential_composite(action_ts&&... steps);
 
-private:
+protected:
     auto setup_node(exec::task_node& self_node) -> exec::task_node& override;
 
+private:
     auto translate_steps(exec::task_node& self_node) -> std::vector<exec::graph_segment>;
 
     static auto setup_step_node(

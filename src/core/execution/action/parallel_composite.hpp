@@ -27,23 +27,19 @@ public:
         requires (sizeof...(action_ts) > 0) && (exec::action_like<std::decay_t<action_ts>> && ...)
     explicit parallel_composite(action_ts&&... steps);
 
-private:
+protected:
     auto setup_node(exec::task_node& self_node) -> exec::task_node& override;
 
-    auto setup_join_node(exec::task_node& self_node, exec::task_node& join_node) -> void;
+private:
+    auto translate_steps(exec::task_node& self_node) -> std::vector<exec::graph_segment>;
 
-    auto on_step_finished(
+    static auto setup_branch_node(
         exec::task_node& self_node,
-        const exec::task_node* current_begin,
         exec::task_node& join_node,
+        const exec::graph_segment& branch,
         const std::shared_ptr<join_state>& state) -> void;
 
-    auto on_self_finished(
-        exec::task_node& self_node,
-        const std::vector<exec::graph_segment>& entries,
-        exec::task_node& join_node) -> void;
-
-    auto resolve_join(exec::task_node& self_node, exec::task_node& join_node, const join_state& state) -> void;
+    static auto resolve_join(exec::task_node& self_node, exec::task_node& join_node, const join_state& state) -> void;
 
 private:
     std::vector<std::shared_ptr<basic_action>> _steps;

@@ -29,7 +29,8 @@ auto task_graph::cancel_subtree(task_node& current) -> void
     const auto terminal{
         current.state == action_state::succeeded
         || current.state == action_state::failed
-        || current.state == action_state::cancelled };
+        || current.state == action_state::cancelled
+    };
 
     if (!terminal)
     {
@@ -45,7 +46,7 @@ auto task_graph::cancel_subtree(task_node& current) -> void
         }
     }
 
-    for (auto& child: current.get_children())
+    for (auto& child : current.get_children())
     {
         cancel_subtree(*child);
     }

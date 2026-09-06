@@ -1,8 +1,5 @@
 #include "parallel_composite.hpp"
 
-#include <memory>
-#include <tuple>
-
 
 namespace he
 {
@@ -11,107 +8,93 @@ auto parallel_composite::setup_node(exec::task_node& self_node) -> exec::task_no
 {
     auto& join_node{ self_node.add_child() };
 
-    setup_join_node(self_node, join_node);
+    auto branches{ translate_steps(self_node) };
+
+    auto state{ std::make_shared<join_state>() };
+    state->pending = branches.size();
+    state->step_starts.reserve(branches.size());
+
+    for (auto& branch : branches)
+    {
+        state->step_starts.push_back(&branch.start);
+    }
+
+    for (auto& branch : branches)
+    {
+        setup_branch_node(self_node, join_node, branch, state);
+    }
 
     join_node.post_execution.bind([&join_node] (exec::execution_status) { join_node.resolve_links(); });
+
+    self_node.post_execution.bind(
+        [&self_node, &join_node, branches] (exec::execution_status)
+        {
+            if (self_node.cancel_requested)
+            {
+                self_node.state = exec::action_state::cancelled;
+                join_node.state = exec::action_state::cancelled;
+
+                std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
+
+                return;
+            }
+
+            for (auto& branch : branches)
+            {
+                branch.start.set_context(self_node.get_context());
+                branch.start.activate();
+            }
+        });
 
     return join_node;
 }
 
 
-auto parallel_composite::setup_join_node(exec::task_node& self_node, exec::task_node& join_node) -> void
+auto parallel_composite::translate_steps(exec::task_node& self_node) -> std::vector<exec::graph_segment>
 {
-    auto entries{ std::vector<exec::graph_segment>{} };
-    entries.reserve(_steps.size());
+    auto segments{ std::vector<exec::graph_segment>{} };
+    segments.reserve(_steps.size());
 
-    for (auto& step : _steps)
+    for (const auto& step : _steps)
     {
-        entries.push_back(step->translate_into_graph(self_node));
+        segments.push_back(step->translate_into_graph(self_node));
     }
 
-    auto state{ std::make_shared<join_state>() };
-    state->pending = _steps.size();
-    state->step_starts.reserve(entries.size());
-
-    for (auto& entry : entries)
-    {
-        state->step_starts.push_back(&entry.start);
-    }
-
-    for (std::size_t i{ 0 }; i < _steps.size(); ++i)
-    {
-        auto* const current_begin{ &entries[i].start };
-
-        entries[i].end.post_execution.bind(
-            [this, &self_node, current_begin, &join_node, state] (exec::execution_status)
-            {
-                on_step_finished(self_node, current_begin, join_node, state);
-            });
-    }
-
-    self_node.post_execution.bind(
-        [self{ std::static_pointer_cast<parallel_composite>(shared_from_this()) }, &self_node, entries, &join_node] (exec::execution_status)
-        {
-            self->on_self_finished(self_node, entries, join_node);
-        });
+    return segments;
 }
 
 
-auto parallel_composite::on_step_finished(
+auto parallel_composite::setup_branch_node(
     exec::task_node& self_node,
-    const exec::task_node* current_begin,
     exec::task_node& join_node,
+    const exec::graph_segment& branch,
     const std::shared_ptr<join_state>& state) -> void
 {
-    if (self_node.state == exec::action_state::cancelled)
-    {
-        return;
-    }
+    branch.end.post_execution.bind(
+        [&self_node, &join_node, branch_start{ &branch.start }, state] (exec::execution_status)
+        {
+            if (!self_node.cancel_requested && branch_start->state != exec::action_state::succeeded)
+            {
+                state->any_failed = true;
+            }
 
-    if (!self_node.cancel_requested && current_begin->state != exec::action_state::succeeded)
-    {
-        state->any_failed = true;
-    }
+            if (--state->pending != 0)
+            {
+                return;
+            }
 
-    if (--state->pending != 0)
-    {
-        return;
-    }
+            if (self_node.cancel_requested)
+            {
+                self_node.state = exec::action_state::cancelled;
+                join_node.state = exec::action_state::cancelled;
 
-    if (self_node.cancel_requested)
-    {
-        self_node.state = exec::action_state::cancelled;
-        join_node.state = exec::action_state::cancelled;
-
-        std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
-    }
-    else
-    {
-        resolve_join(self_node, join_node, *state);
-    }
-}
-
-
-auto parallel_composite::on_self_finished(
-    exec::task_node& self_node,
-    const std::vector<exec::graph_segment>& entries,
-    exec::task_node& join_node) -> void
-{
-    if (self_node.cancel_requested)
-    {
-        self_node.state = exec::action_state::cancelled;
-        join_node.state = exec::action_state::cancelled;
-
-        std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
-
-        return;
-    }
-
-    for (std::size_t i{ 0 }; i < _steps.size(); ++i)
-    {
-        entries[i].start.set_context(self_node.get_context());
-        entries[i].start.activate();
-    }
+                std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
+            }
+            else
+            {
+                resolve_join(self_node, join_node, *state);
+            }
+        });
 }
 
 
