@@ -9,11 +9,11 @@
 
 TEST_CASE("task_graph tree")
 {
-    SECTION("root has no parent")
+    SECTION("root has no get_parent")
     {
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        REQUIRE(graph->root().parent() == nullptr);
+        REQUIRE(graph->root().get_parent() == nullptr);
     }
 
     SECTION("root returns same node instance")
@@ -23,21 +23,21 @@ TEST_CASE("task_graph tree")
         REQUIRE(&graph->root() == &graph->root());
     }
 
-    SECTION("add_child appends to children")
+    SECTION("add_child appends to get_children")
     {
         auto graph{ std::make_shared<he::exec::task_graph>() };
         auto& child{ graph->root().add_child() };
 
-        REQUIRE(graph->root().children().size() == 1);
-        REQUIRE(graph->root().children().front().get() == &child);
+        REQUIRE(graph->root().get_children().size() == 1);
+        REQUIRE(graph->root().get_children().front().get() == &child);
     }
 
-    SECTION("add_child sets parent")
+    SECTION("add_child sets get_parent")
     {
         auto graph{ std::make_shared<he::exec::task_graph>() };
         auto& child{ graph->root().add_child() };
 
-        REQUIRE(child.parent() == &graph->root());
+        REQUIRE(child.get_parent() == &graph->root());
     }
 }
 
@@ -134,7 +134,7 @@ TEST_CASE("task_graph traversal")
         REQUIRE(ran);
     }
 
-    SECTION("post_execution activates multiple children")
+    SECTION("post_execution activates multiple get_children")
     {
         auto first_ran{ false };
         auto second_ran{ false };

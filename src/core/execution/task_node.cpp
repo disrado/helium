@@ -25,13 +25,13 @@ auto task_node::activate() -> void
 }
 
 
-auto task_node::parent() const -> task_node*
+auto task_node::get_parent() const -> task_node*
 {
     return _parent;
 }
 
 
-auto task_node::children() const -> const std::vector<std::unique_ptr<task_node>>&
+auto task_node::get_children() const -> const std::vector<std::unique_ptr<task_node>>&
 {
     return _children;
 }

@@ -31,12 +31,12 @@ public:
     auto add_child() -> task_node&;
     auto activate() -> void;
 
-    auto parent() const -> task_node*;
-    auto children() const -> const std::vector<std::unique_ptr<task_node>>&;
+    auto get_parent() const -> task_node*;
+
+    auto get_children() const -> const std::vector<std::unique_ptr<task_node>>&;
 
     auto get_context() const -> const std::optional<action_context>&;
     auto set_context(std::optional<action_context> new_context) -> void;
-
     auto merge_context(std::optional<action_context> new_entries) -> void;
 
 public:

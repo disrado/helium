@@ -45,7 +45,7 @@ auto task_graph::cancel_subtree(task_node& current) -> void
         }
     }
 
-    for (auto& child: current.children())
+    for (auto& child: current.get_children())
     {
         cancel_subtree(*child);
     }

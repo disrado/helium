@@ -20,8 +20,8 @@ TEST_CASE("async_action")
         auto graph{ std::make_shared<he::exec::task_graph>() };
         auto& node{ instance->translate_into_graph(graph->root()).start };
 
-        REQUIRE(graph->root().children().size() == 1);
-        REQUIRE(graph->root().children().front().get() == &node);
+        REQUIRE(graph->root().get_children().size() == 1);
+        REQUIRE(graph->root().get_children().front().get() == &node);
     }
 
     SECTION("uses async launch policy")
