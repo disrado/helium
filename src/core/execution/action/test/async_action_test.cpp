@@ -1,3 +1,4 @@
+#include "core/execution/action/action.hpp"
 #include "core/execution/action/async_action.hpp"
 #include "core/execution/run.hpp"
 #include "core/execution/scheduler.hpp"
@@ -8,6 +9,7 @@
 #include <atomic>
 #include <memory>
 #include <stop_token>
+#include <thread>
 #include <tuple>
 
 
@@ -106,5 +108,125 @@ TEST_CASE("async_action cancel")
         REQUIRE(observed_cancel);
 
         he::exec::scheduler::instance().process();
+    }
+
+    SECTION("cancel from another thread")
+    {
+        auto started{ std::atomic<bool>{ false } };
+        auto observed_cancel{ std::atomic<bool>{ false } };
+
+        auto instance{
+            he::async_action{ [&started, &observed_cancel] (const he::async_action::context&, std::stop_token stop)
+            {
+                started = true;
+
+                while (!stop.stop_requested())
+                {
+                }
+
+                observed_cancel = true;
+
+                return false;
+            } }
+        };
+
+        auto token{ he::run(std::move(instance)) };
+
+        while (!started)
+        {
+        }
+
+        auto canceller{ std::thread{ [&token] { token.cancel(); } } };
+
+        while (!observed_cancel)
+        {
+        }
+
+        canceller.join();
+
+        REQUIRE(observed_cancel);
+
+        he::exec::scheduler::instance().process();
+    }
+}
+
+
+TEST_CASE("async_action chaining")
+{
+    SECTION("and_then runs on success")
+    {
+        auto then_ran{ std::atomic<bool>{ false } };
+
+        auto token{
+            he::run(
+                he::async_action{ [] (const he::async_action::context&) { return true; } }
+                    .and_then(
+                        he::action{ [&then_ran] (const he::action::context&)
+                        {
+                            then_ran = true;
+                            return true;
+                        } }))
+        };
+
+        while (!then_ran)
+        {
+            he::exec::scheduler::instance().process();
+        }
+
+        REQUIRE(then_ran);
+    }
+
+    SECTION("or_else runs on failure")
+    {
+        auto otherwise_ran{ std::atomic<bool>{ false } };
+
+        auto token{
+            he::run(
+                he::async_action{ [] (const he::async_action::context&) { return false; } }
+                    .or_else(
+                        he::action{ [&otherwise_ran] (const he::action::context&)
+                        {
+                            otherwise_ran = true;
+                            return true;
+                        } }))
+        };
+
+        while (!otherwise_ran)
+        {
+            he::exec::scheduler::instance().process();
+        }
+
+        REQUIRE(otherwise_ran);
+    }
+
+    SECTION("and_then skipped on failure")
+    {
+        auto then_ran{ std::atomic<bool>{ false } };
+        auto otherwise_ran{ std::atomic<bool>{ false } };
+
+        auto token{
+            he::run(
+                he::async_action{ [] (const he::async_action::context&) { return false; } }
+                    .and_then(
+                        he::action{ [&then_ran] (const he::action::context&)
+                        {
+                            then_ran = true;
+                            return true;
+                        } })
+                    .or_else(
+                        he::action{ [&otherwise_ran] (const he::action::context&)
+                        {
+                            otherwise_ran = true;
+                            return true;
+                        } }))
+        };
+
+        while (!otherwise_ran)
+        {
+            he::exec::scheduler::instance().process();
+        }
+
+        REQUIRE_FALSE(then_ran);
+        REQUIRE(otherwise_ran);
     }
 }

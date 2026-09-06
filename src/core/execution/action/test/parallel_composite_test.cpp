@@ -389,4 +389,61 @@ TEST_CASE("parallel_composite cancel")
         REQUIRE_FALSE(then_ran);
         REQUIRE_FALSE(otherwise_ran);
     }
+
+    SECTION("cancel from another thread doesn't clobber state")
+    {
+        auto started{ std::atomic<bool>{ false } };
+        auto worker_done{ std::atomic<bool>{ false } };
+        auto then_ran{ false };
+        auto otherwise_ran{ false };
+
+        auto token{
+            he::run(
+                he::parallel_composite{
+                    he::async_action{ [&started, &worker_done] (const he::async_action::context&, std::stop_token stop)
+                    {
+                        started = true;
+
+                        while (!stop.stop_requested())
+                        {
+                        }
+
+                        worker_done = true;
+
+                        return false;
+                    } }
+                }
+                .and_then(
+                    he::action{ [&then_ran] (const he::action::context&)
+                    {
+                        then_ran = true;
+                        return true;
+                    } })
+                .or_else(
+                    he::action{ [&otherwise_ran] (const he::action::context&)
+                    {
+                        otherwise_ran = true;
+                        return true;
+                    } }))
+        };
+
+        while (!started)
+        {
+        }
+
+        auto canceller{ std::thread{ [&token] { token.cancel(); } } };
+
+        while (!worker_done)
+        {
+        }
+
+        canceller.join();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+        he::exec::scheduler::instance().process();
+
+        REQUIRE_FALSE(then_ran);
+        REQUIRE_FALSE(otherwise_ran);
+    }
 }

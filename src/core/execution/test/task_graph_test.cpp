@@ -1,9 +1,11 @@
+#include "core/delegate/delegate.hpp"
 #include "core/execution/task_graph.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <any>
 #include <memory>
+#include <optional>
 #include <string>
 
 
@@ -259,5 +261,124 @@ TEST_CASE("task_node context")
         graph->root().merge_context(he::exec::action_context{ { "key", std::string{ "new" } } });
 
         REQUIRE(std::any_cast<std::string>(graph->root().get_context().value().at("key")) == "new");
+    }
+}
+
+
+TEST_CASE("task_node links")
+{
+    SECTION("get_links empty by default")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+
+        REQUIRE(graph->root().get_links().empty());
+    }
+
+    SECTION("add_link stores entry")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        auto& target{ graph->root().add_child() };
+
+        graph->root().add_link(
+            {
+                .condition{ he::delegate<bool(he::exec::action_state)>{ [] (he::exec::action_state) { return true; } } },
+                .target{ &target }
+            });
+
+        REQUIRE(graph->root().get_links().size() == 1);
+        REQUIRE(graph->root().get_links().front().target == &target);
+    }
+
+    SECTION("resolve_links activates match")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        auto& target{ graph->root().add_child() };
+
+        auto activated{ false };
+        target.definition.bind([&activated] (std::stop_token) { activated = true; });
+
+        graph->root().add_link(
+            {
+                .condition{ he::delegate<bool(he::exec::action_state)>{
+                    [] (he::exec::action_state s) { return s == he::exec::action_state::succeeded; } } },
+                .target{ &target }
+            });
+
+        graph->root().state = he::exec::action_state::succeeded;
+        graph->root().resolve_links();
+
+        REQUIRE(activated);
+    }
+
+    SECTION("resolve_links no match is no-op")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        auto& target{ graph->root().add_child() };
+
+        auto activated{ false };
+        target.definition.bind([&activated] (std::stop_token) { activated = true; });
+
+        graph->root().add_link(
+            {
+                .condition{ he::delegate<bool(he::exec::action_state)>{
+                    [] (he::exec::action_state s) { return s == he::exec::action_state::succeeded; } } },
+                .target{ &target }
+            });
+
+        graph->root().state = he::exec::action_state::failed;
+        graph->root().resolve_links();
+
+        REQUIRE_FALSE(activated);
+    }
+
+    SECTION("resolve_links: first match wins")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        auto& first_target{ graph->root().add_child() };
+        auto& second_target{ graph->root().add_child() };
+
+        auto first_activated{ false };
+        auto second_activated{ false };
+        first_target.definition.bind([&first_activated] (std::stop_token) { first_activated = true; });
+        second_target.definition.bind([&second_activated] (std::stop_token) { second_activated = true; });
+
+        const auto always{ he::delegate<bool(he::exec::action_state)>{ [] (he::exec::action_state) { return true; } } };
+
+        graph->root().add_link({ .condition{ always }, .target{ &first_target } });
+        graph->root().add_link({ .condition{ always }, .target{ &second_target } });
+
+        graph->root().resolve_links();
+
+        REQUIRE(first_activated);
+        REQUIRE_FALSE(second_activated);
+    }
+
+    SECTION("resolve_links propagates context")
+    {
+        auto graph{ std::make_shared<he::exec::task_graph>() };
+        auto& target{ graph->root().add_child() };
+
+        graph->root().set_context(he::exec::action_context{ { "key", std::string{ "value" } } });
+
+        auto received{ std::optional<std::string>{} };
+        target.definition.bind(
+            [&target, &received] (std::stop_token)
+            {
+                if (target.get_context().has_value())
+                {
+                    received = std::any_cast<std::string>(target.get_context().value().at("key"));
+                }
+            });
+
+        graph->root().add_link(
+            {
+                .condition{ he::delegate<bool(he::exec::action_state)>{ [] (he::exec::action_state) { return true; } } },
+                .target{ &target }
+            });
+
+        graph->root().resolve_links();
+
+        REQUIRE(received.has_value());
+        REQUIRE(received.value() == "value");
     }
 }
