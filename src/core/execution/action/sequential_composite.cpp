@@ -70,15 +70,17 @@ auto sequential_composite::setup_step_node(
                 return;
             }
 
-            if (next_step_start && step_start->state == exec::action_state::succeeded)
+            const auto step_result{ step_start->state.load() };
+
+            if (next_step_start && step_result == exec::action_state::succeeded)
             {
                 next_step_start->set_context(step_start->get_context());
                 next_step_start->activate();
             }
             else
             {
-                self_node.state = step_start->state;
-                completion_node.state = step_start->state;
+                self_node.state = step_result;
+                completion_node.state = step_result;
                 completion_node.set_context(step_start->get_context());
 
                 std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);

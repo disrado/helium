@@ -73,7 +73,9 @@ auto parallel_composite::setup_branch_node(
     branch.end.post_execution.bind(
         [&self_node, &join_node, branch_start{ &branch.start }, state] (exec::execution_status)
         {
-            if (!self_node.cancel_requested && branch_start->state != exec::action_state::succeeded)
+            const auto cancel_requested{ self_node.cancel_requested.load() };
+
+            if (!cancel_requested && branch_start->state != exec::action_state::succeeded)
             {
                 state->any_failed = true;
             }
@@ -83,7 +85,7 @@ auto parallel_composite::setup_branch_node(
                 return;
             }
 
-            if (self_node.cancel_requested)
+            if (cancel_requested)
             {
                 self_node.state = exec::action_state::cancelled;
                 join_node.state = exec::action_state::cancelled;
@@ -101,7 +103,7 @@ auto parallel_composite::setup_branch_node(
 auto parallel_composite::resolve_join(exec::task_node& self_node, exec::task_node& join_node, const join_state& state) -> void
 {
     self_node.state = state.any_failed ? exec::action_state::failed : exec::action_state::succeeded;
-    join_node.state = self_node.state;
+    join_node.state = self_node.state.load();
 
     for (auto* begin : state.step_starts)
     {

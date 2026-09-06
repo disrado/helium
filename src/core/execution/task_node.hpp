@@ -4,6 +4,7 @@
 #include "core/delegate/multicast_delegate.hpp"
 #include "core/execution/defs.hpp"
 
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -50,11 +51,11 @@ public:
     delegate<bool()> pre_condition;
     multicast_delegate<execution_status> post_execution;
 
-    task_id id{ invalid_task_id };
+    std::atomic<task_id> id{ invalid_task_id };
 
-    action_state state{ action_state::dormant };
+    std::atomic<action_state> state{ action_state::dormant };
 
-    bool cancel_requested{ false };
+    std::atomic<bool> cancel_requested{ false };
 
 private:
     std::vector<std::unique_ptr<task_node>> _children;

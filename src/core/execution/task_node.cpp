@@ -15,9 +15,11 @@ task_node::task_node(task_graph& graph, task_node* parent)
 
 auto task_node::resolve_links() -> void
 {
+    const auto current_state{ state.load() };
+
     for (auto& entry : _links)
     {
-        if (entry.condition.try_execute(state).value_or(false))
+        if (entry.condition.try_execute(current_state).value_or(false))
         {
             entry.target->set_context(get_context());
             entry.target->activate();
