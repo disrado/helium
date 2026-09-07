@@ -9,6 +9,8 @@ namespace he::exec
 
 scheduler::~scheduler()
 {
+    _is_shutting_down.store(true);
+
     {
         const auto _{ std::lock_guard{ _stop_sources_mutex } };
 
@@ -29,7 +31,6 @@ scheduler::~scheduler()
             [this] { return _outstanding_async.load(std::memory_order_acquire) == 0; });
     }
 
-    // deliver whatever's already queued instead of dropping it silently on destruction
     drain();
 }
 
@@ -42,6 +43,11 @@ auto scheduler::set_dispatcher(std::unique_ptr<dispatcher> new_dispatcher) -> vo
 
 auto scheduler::post(task_request request) -> task_id
 {
+    if (_is_shutting_down.load(std::memory_order_relaxed))
+    {
+        return invalid_task_id;
+    }
+
     const auto id{ next_task_id() };
 
     auto new_task{

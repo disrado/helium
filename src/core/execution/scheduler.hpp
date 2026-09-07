@@ -81,6 +81,7 @@ private:
 
     std::atomic<int> _outstanding_async{ 0 };
 
+    std::atomic<bool> _is_shutting_down{ false };
     std::mutex _shutdown_mutex;
     std::condition_variable _shutdown_cv;
 

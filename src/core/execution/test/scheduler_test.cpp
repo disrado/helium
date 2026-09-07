@@ -587,4 +587,38 @@ TEST_CASE("scheduler shutdown")
 
         REQUIRE(on_complete_ran);
     }
+
+    SECTION("rejects post from on_complete during destruction")
+    {
+        auto observed{ false };
+        auto id_during_shutdown{ he::exec::scheduler::invalid_task_id };
+
+        {
+            auto instance{ he::exec::scheduler{} };
+            instance.set_dispatcher(std::make_unique<recording_dispatcher>());
+
+            instance.post(
+                he::exec::task_request{
+                    .mode{ he::exec::launch_policy::async },
+                    .definition{ [] (std::stop_token) {} },
+                    .on_complete{
+                        [&instance, &observed, &id_during_shutdown] (he::exec::execution_status)
+                        {
+                            observed = true;
+                            id_during_shutdown = instance.post(
+                                he::exec::task_request{
+                                    .mode{ he::exec::launch_policy::sync },
+                                    .definition{ [] (std::stop_token) {} },
+                                    .on_complete{ [] (he::exec::execution_status) {} }
+                                });
+                        } }
+                });
+
+            // deliberately no instance.process() call — ~scheduler()'s drain() delivers on_complete,
+            // which reenters post() while the object is already shutting down
+        }
+
+        REQUIRE(observed);
+        REQUIRE(id_during_shutdown == he::exec::scheduler::invalid_task_id);
+    }
 }
