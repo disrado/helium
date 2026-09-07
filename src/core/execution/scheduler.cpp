@@ -29,8 +29,8 @@ scheduler::~scheduler()
             [this] { return _outstanding_async.load(std::memory_order_acquire) == 0; });
     }
 
-    // deliver whatever's already sitting in _queue instead of dropping it silently on destruction
-    process();
+    // deliver whatever's already queued instead of dropping it silently on destruction
+    drain();
 }
 
 
@@ -98,9 +98,11 @@ auto scheduler::cancel(task_id id) -> bool
 
 auto scheduler::process() -> void
 {
-    while (process_queue())
-    {
-    }
+    const auto draining{ _active_queue.load(std::memory_order_acquire) };
+
+    _active_queue.store(1 - draining, std::memory_order_release);
+
+    process_queue(_queues[draining]);
 }
 
 
@@ -129,7 +131,7 @@ auto scheduler::dispatch_async(task new_task) -> void
         {
             target.status = invoke_definition(token, target.definition);
 
-            _queue.enqueue(std::move(target));
+            _queues[_active_queue.load(std::memory_order_acquire)].enqueue(std::move(target));
 
             signal_async_complete();
         });
@@ -138,16 +140,16 @@ auto scheduler::dispatch_async(task new_task) -> void
 
 auto scheduler::queue_next_frame(task new_task) -> void
 {
-    _queue.enqueue(std::move(new_task));
+    _queues[_active_queue.load(std::memory_order_acquire)].enqueue(std::move(new_task));
 }
 
 
-auto scheduler::process_queue() -> bool
+auto scheduler::process_queue(moodycamel::ConcurrentQueue<task>& queue) -> bool
 {
     auto processed{ false };
     auto item{ task{} };
 
-    while (_queue.try_dequeue(item))
+    while (queue.try_dequeue(item))
     {
         if (item.mode == launch_policy::async)
         {
@@ -162,6 +164,15 @@ auto scheduler::process_queue() -> bool
     }
 
     return processed;
+}
+
+
+auto scheduler::drain() -> void
+{
+    for (auto& queue : _queues)
+    {
+        process_queue(queue);
+    }
 }
 
 

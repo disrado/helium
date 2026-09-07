@@ -176,7 +176,7 @@ TEST_CASE("scheduler next_frame task")
         REQUIRE(order == "12");
     }
 
-    SECTION("re-queue resolves same call")
+    SECTION("re-queue resolves next call")
     {
         auto order{ std::string{} };
 
@@ -198,6 +198,10 @@ TEST_CASE("scheduler next_frame task")
                     } },
                 .on_complete{ [] (he::exec::execution_status) {} }
             });
+
+        instance.process();
+
+        REQUIRE(order == "a");
 
         instance.process();
 

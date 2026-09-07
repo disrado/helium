@@ -7,6 +7,7 @@
 
 #include <moodycamel/concurrentqueue.h>
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -58,7 +59,8 @@ private:
     auto dispatch_async(task new_task) -> void;
     auto queue_next_frame(task new_task) -> void;
 
-    auto process_queue() -> bool;
+    auto process_queue(moodycamel::ConcurrentQueue<task>& queue) -> bool;
+    auto drain() -> void;
 
     auto token_for(task_id id) -> std::stop_token;
 
@@ -71,7 +73,8 @@ public:
     static constexpr task_id invalid_task_id{ he::exec::invalid_task_id };
 
 private:
-    moodycamel::ConcurrentQueue<task> _queue;
+    std::array<moodycamel::ConcurrentQueue<task>, 2> _queues;
+    std::atomic<int> _active_queue{ 0 };
 
     std::unordered_map<task_id, std::stop_source> _stop_sources;
     std::mutex _stop_sources_mutex;
