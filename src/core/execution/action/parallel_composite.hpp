@@ -2,7 +2,6 @@
 
 #include "core/execution/action/action_base.hpp"
 
-#include <cstddef>
 #include <memory>
 #include <type_traits>
 #include <utility>
