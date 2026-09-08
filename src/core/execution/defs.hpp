@@ -28,7 +28,7 @@ concept action_like = std::is_base_of_v<basic_action, t>;
 using task_id = int64_t;
 
 
-inline constexpr task_id invalid_task_id{ 0 };
+static constexpr task_id invalid_task_id{ 0 };
 
 
 enum class launch_policy : uint8_t

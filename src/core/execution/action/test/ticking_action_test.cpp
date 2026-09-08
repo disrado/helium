@@ -96,7 +96,8 @@ TEST_CASE("ticking_action")
         auto token{
             he::run(
                 he::ticking_action{
-                    [] (const he::ticking_action::context&, std::stop_token) { return he::ticking_action::result::succeeded; } }
+                    [] (const he::ticking_action::context&, std::stop_token) { return he::ticking_action::result::succeeded; }
+                }
                 .and_then(
                     he::action{ [&then_count] (const he::action::context&)
                     {
@@ -121,7 +122,8 @@ TEST_CASE("ticking_action")
         auto token{
             he::run(
                 he::ticking_action{
-                    [] (const he::ticking_action::context&, std::stop_token) { return he::ticking_action::result::failed; } }
+                    [] (const he::ticking_action::context&, std::stop_token) { return he::ticking_action::result::failed; }
+                }
                 .or_else(
                     he::action{ [&otherwise_count] (const he::action::context&)
                     {

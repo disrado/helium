@@ -73,7 +73,7 @@ template <typename callable_t>
              || std::is_invocable_r_v<bool, callable_t, const basic_action::context&, std::stop_token>
 basic_action::basic_action(callable_t definition)
 {
-    if constexpr (std::is_invocable_r_v<bool, callable_t, const basic_action::context&, std::stop_token>)
+    if constexpr (std::is_invocable_r_v<bool, callable_t, const context&, std::stop_token>)
     {
         _definition = delegate{ std::move(definition) };
     }

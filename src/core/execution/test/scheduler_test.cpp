@@ -497,7 +497,7 @@ TEST_CASE("scheduler cancel")
     {
         auto instance{ he::exec::scheduler::create() };
 
-        REQUIRE_FALSE(instance->cancel(he::exec::scheduler::invalid_task_id));
+        REQUIRE_FALSE(instance->cancel(he::exec::invalid_task_id));
         REQUIRE_FALSE(instance->cancel(he::exec::task_id{ 12345 }));
     }
 
@@ -717,7 +717,7 @@ TEST_CASE("scheduler shutdown")
                     .on_complete{ [&on_complete_ran] (he::exec::execution_status) { on_complete_ran = true; } }
                 });
 
-            // deliberately no instance->process() call — relying purely on ~scheduler() to deliver it
+            // deliberately no instance->process() call — relying purely on ~scheduler() to run_completion it
         }
 
         REQUIRE(on_complete_ran);
@@ -726,7 +726,7 @@ TEST_CASE("scheduler shutdown")
     SECTION("rejects post from on_complete during destruction")
     {
         auto observed{ false };
-        auto id_during_shutdown{ he::exec::scheduler::invalid_task_id };
+        auto id_during_shutdown{ he::exec::invalid_task_id };
 
         {
             auto instance{ he::exec::scheduler::create() };
@@ -754,7 +754,7 @@ TEST_CASE("scheduler shutdown")
         }
 
         REQUIRE(observed);
-        REQUIRE(id_during_shutdown == he::exec::scheduler::invalid_task_id);
+        REQUIRE(id_during_shutdown == he::exec::invalid_task_id);
     }
 
     SECTION("task outliving a non-joining dispatcher's scheduler is dropped, not delivered")

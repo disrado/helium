@@ -31,9 +31,8 @@ public:
 struct task final
 {
 public:
+    task_id id;
 
-
-public:
     launch_policy mode;
 
     task_definition definition;
@@ -63,13 +62,10 @@ private:
         std::atomic<int> _active{ 0 };
     };
 
-protected:
-    scheduler() = default;
-
 public:
-    static auto create() -> std::shared_ptr<scheduler>;
-
     ~scheduler() override;
+
+    static auto create() -> std::shared_ptr<scheduler>;
 
     auto set_dispatcher(std::unique_ptr<dispatcher> new_dispatcher) -> void;
 
@@ -78,19 +74,27 @@ public:
 
     auto process() -> void;
 
+protected:
+    scheduler() = default;
+
 private:
     auto next_task_id() -> task_id;
 
-    auto dispatch_async(task_id id, std::shared_ptr<task> record) -> void;
-    auto run_record(task_id id, const std::shared_ptr<task>& record) -> void;
-    auto deliver(task_id id, const std::shared_ptr<task>& record) -> void;
-    auto process_one(task_id id) -> void;
+    auto allocate_task(task_request request) -> std::shared_ptr<task>;
 
-    auto find_record(task_id id) -> std::shared_ptr<task>;
+    auto dispatch_async(std::shared_ptr<task> target) -> void;
+
+    auto run_inline(task_request request) -> void;
+    auto run_sync(std::shared_ptr<task> target) -> void;
+    auto run_tick(std::shared_ptr<task> target) -> void;
+
+    auto run_completion(std::shared_ptr<task> target) -> void;
+
+    auto process_task(task_id id) -> void;
+    auto process_queued(std::shared_ptr<task> task) -> void;
+
+    auto find_task(task_id id) -> std::shared_ptr<task>;
     auto drain() -> void;
-
-public:
-    static constexpr task_id invalid_task_id{ he::exec::invalid_task_id };
 
 private:
     double_buffered_queue _queue;
