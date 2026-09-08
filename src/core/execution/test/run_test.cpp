@@ -202,7 +202,7 @@ TEST_CASE("run example")
         public:
             auto execute(he::exec::task_node& self, std::stop_token) -> void override
             {
-                std::ignore = std::any_cast<std::string>(self.get_context().value().at("label"));
+                std::ignore = std::any_cast<std::string>(self.get_context().at("label"));
 
                 self.state = state::failed;
             }

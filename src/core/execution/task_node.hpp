@@ -41,9 +41,9 @@ public:
 
     auto get_children() const -> const std::vector<std::unique_ptr<task_node>>&;
 
-    auto get_context() const -> const std::optional<action_context>&;
-    auto set_context(std::optional<action_context> new_context) -> void;
-    auto merge_context(std::optional<action_context> new_entries) -> void;
+    auto get_context() const -> const action_context&;
+    auto set_context(action_context new_context) -> void;
+    auto merge_context(action_context source) -> void;
 
 public:
     launch_policy mode{ launch_policy::sync };
@@ -61,7 +61,7 @@ private:
     std::vector<std::unique_ptr<task_node>> _children;
     std::vector<link> _links;
 
-    std::optional<action_context> _context;
+    action_context _context;
 
     task_graph& _graph;
     task_node* _parent;

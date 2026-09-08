@@ -54,35 +54,23 @@ auto task_node::get_children() const -> const std::vector<std::unique_ptr<task_n
 }
 
 
-auto task_node::get_context() const -> const std::optional<action_context>&
+auto task_node::get_context() const -> const action_context&
 {
     return _context;
 }
 
 
-auto task_node::set_context(std::optional<action_context> new_context) -> void
+auto task_node::set_context(action_context new_context) -> void
 {
     _context = std::move(new_context);
 }
 
 
-auto task_node::merge_context(std::optional<action_context> new_entries) -> void
+auto task_node::merge_context(action_context source) -> void
 {
-    if (!new_entries.has_value())
+    for (auto& [key, value]: source)
     {
-        return;
-    }
-
-    if (!_context.has_value())
-    {
-        _context = std::move(new_entries);
-
-        return;
-    }
-
-    for (auto& [key, value]: new_entries.value())
-    {
-        _context.value()[key] = std::move(value);
+        _context[key] = std::move(value);
     }
 }
 

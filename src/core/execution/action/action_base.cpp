@@ -20,7 +20,7 @@ basic_action::basic_action(delegate<bool(const context&, std::stop_token)> defin
 
 auto basic_action::execute(task_node& self_node, std::stop_token token) -> void
 {
-    if (auto result{ _definition.try_execute(self_node.get_context().value_or({}), std::move(token)) }; result.has_value() && result.value())
+    if (auto result{ _definition.try_execute(self_node.get_context(), std::move(token)) }; result.has_value() && result.value())
     {
         self_node.state = action_state::succeeded;
 
