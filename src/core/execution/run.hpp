@@ -28,7 +28,7 @@ run::run(exec::action_like auto target, std::optional<exec::action_context> init
     auto root{ std::make_shared<decltype(target)>(std::move(target)) };
     auto segment{ root->translate_into_graph(_graph->root()) };
 
-    segment.start.set_context(std::move(initial_context));
+    segment.start.set_context(std::move(initial_context.value_or({})));
 
     _graph->activate(segment.start);
 }

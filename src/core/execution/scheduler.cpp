@@ -4,31 +4,80 @@
 #include <tuple>
 
 
+namespace
+{
+
+auto invoke_definition(const std::stop_token& token, const he::exec::task_definition& definition) -> he::exec::execution_status
+{
+    if (token.stop_requested())
+    {
+        return he::exec::execution_status::cancelled;
+    }
+
+    return definition.try_execute(token).value_or(he::exec::execution_status::faulted);
+}
+
+}
+
+
 namespace he::exec
 {
 
-scheduler::~scheduler()
+auto scheduler::double_buffered_queue::enqueue(task_id id) -> void
 {
-    _is_shutting_down.store(true);
+    _queues[_active.load(std::memory_order_acquire)].enqueue(id);
+}
 
+
+auto scheduler::double_buffered_queue::drain_active(const std::function<void(task_id)>& handler) -> void
+{
+    const auto draining{ _active.load(std::memory_order_acquire) };
+
+    _active.store(1 - draining, std::memory_order_release);
+
+    auto id{ invalid_task_id };
+
+    while (_queues[draining].try_dequeue(id))
     {
-        const auto _{ std::lock_guard{ _stop_sources_mutex } };
+        handler(id);
+    }
+}
 
-        for (auto& source : _stop_sources | std::views::values)
+
+auto scheduler::double_buffered_queue::drain(const std::function<void(task_id)>& handler) -> void
+{
+    for (auto& queue : _queues)
+    {
+        auto id{ invalid_task_id };
+
+        while (queue.try_dequeue(id))
         {
-            source.request_stop();
+            handler(id);
         }
     }
+}
 
+
+auto scheduler::create() -> std::shared_ptr<scheduler>
+{
+    // allows instantiation in third-party while keeping constructor hidden
+    struct enabler final: scheduler {};
+
+    return std::make_shared<enabler>();
+}
+
+
+scheduler::~scheduler()
+{
     {
-        auto lock{ std::unique_lock{ _shutdown_mutex } };
+        const auto _{ std::lock_guard{ _tasks_mutex } };
 
-        // give outstanding async work a short chance to notice the cancellation and finish,
-        // rather than blocking shutdown indefinitely if something never does
-        _shutdown_cv.wait_for(
-            lock,
-            std::chrono::seconds{ 1 },
-            [this] { return _outstanding_async.load(std::memory_order_acquire) == 0; });
+        _is_shutting_down = true;
+
+        for (const auto& record : _tasks | std::views::values)
+        {
+            record->stop_source.request_stop();
+        }
     }
 
     drain();
@@ -43,45 +92,66 @@ auto scheduler::set_dispatcher(std::unique_ptr<dispatcher> new_dispatcher) -> vo
 
 auto scheduler::post(task_request request) -> task_id
 {
-    if (_is_shutting_down.load(std::memory_order_relaxed))
-    {
-        return invalid_task_id;
-    }
-
     const auto id{ next_task_id() };
+    const auto mode{ request.mode };
 
-    auto new_task{
-        task{
-            .mode{ request.mode },
-            .definition{ std::move(request.definition) },
-            .on_complete{ std::move(request.on_complete) },
-            .id{ id }
-        }
-    };
-
+    if (mode == launch_policy::sync)
     {
-        const auto _{ std::lock_guard{ _stop_sources_mutex } };
+        {
+            const auto _{ std::lock_guard{ _tasks_mutex } };
 
-        _stop_sources.emplace(id, std::stop_source{});
+            if (_is_shutting_down)
+            {
+                return invalid_task_id;
+            }
+        }
+
+        // sync's id can't leak to another thread or code path before post() returns — no window
+        // where index tracking would buy anything, so skip it entirely: no record, no map entry
+        const auto status{ invoke_definition(std::stop_token{}, request.definition) };
+
+        std::ignore = request.on_complete.try_execute(status);
+
+        return id;
     }
 
-    switch (new_task.mode)
+    // task holds an atomic member, so it can't be constructed as a temporary and passed
+    // into make_shared by value — default-construct in place, then assign fields individually
+    auto record{ std::make_shared<task>(mode, std::move(request.definition), std::move(request.on_complete)) };
+
+    {
+        const auto _{ std::lock_guard{ _tasks_mutex } };
+
+        if (_is_shutting_down)
+        {
+            return invalid_task_id;
+        }
+
+        _tasks.emplace(id, record);
+    }
+
+    switch (mode)
     {
         case launch_policy::sync:
         {
-            run_task(std::move(new_task));
-            break;
-        }
-        case launch_policy::next_frame:
-        {
-            queue_next_frame(std::move(new_task));
             break;
         }
         case launch_policy::async:
         {
-            dispatch_async(std::move(new_task));
+            dispatch_async(id, std::move(record));
             break;
         }
+        case launch_policy::next_frame:
+        {
+            _queue.enqueue(id);
+            break;
+        }
+        case launch_policy::tick:
+        {
+            _queue.enqueue(id);
+            break;
+        }
+
     }
 
     return id;
@@ -90,25 +160,27 @@ auto scheduler::post(task_request request) -> task_id
 
 auto scheduler::cancel(task_id id) -> bool
 {
-    const auto _{ std::lock_guard{ _stop_sources_mutex } };
+    const auto record{ find_record(id) };
 
-    if (const auto found{ _stop_sources.find(id) }; found != _stop_sources.end())
+    if (!record)
     {
-        found->second.request_stop();
-        return true;
+        return false;
     }
 
-    return false;
+    if (record->phase.load(std::memory_order_acquire) == task_phase::completed)
+    {
+        return false;
+    }
+
+    record->stop_source.request_stop();
+
+    return true;
 }
 
 
 auto scheduler::process() -> void
 {
-    const auto draining{ _active_queue.load(std::memory_order_acquire) };
-
-    _active_queue.store(1 - draining, std::memory_order_release);
-
-    process_queue(_queues[draining]);
+    _queue.drain_active([this] (task_id id) { process_one(id); });
 }
 
 
@@ -118,134 +190,105 @@ auto scheduler::next_task_id() -> task_id
 }
 
 
-auto scheduler::dispatch_async(task new_task) -> void
+auto scheduler::dispatch_async(task_id id, std::shared_ptr<task> record) -> void
 {
-    auto token{ std::stop_token{} };
+    record->phase.store(task_phase::running, std::memory_order_relaxed);
 
-    {
-        const auto _{ std::lock_guard{ _stop_sources_mutex } };
-
-        token = token_for(new_task.id);
-    }
-
-    _outstanding_async.fetch_add(1, std::memory_order_relaxed);
-
-    const auto dispatcher{ _dispatcher.load() };
-
-    dispatcher->dispatch(
-        [this, target{ std::move(new_task) }, token]() mutable
+    _dispatcher.load()->dispatch(
+        [weak{ weak_from_this() }, id, record, stop_token{ record->stop_source.get_token() }]() mutable
         {
-            target.status = invoke_definition(token, target.definition);
+            record->result = invoke_definition(stop_token, record->definition);
+            record->phase.store(task_phase::completed, std::memory_order_release);
 
-            _queues[_active_queue.load(std::memory_order_acquire)].enqueue(std::move(target));
-
-            signal_async_complete();
+            if (const auto self{ weak.lock() })
+            {
+                self->_queue.enqueue(id);
+            }
         });
 }
 
 
-auto scheduler::queue_next_frame(task new_task) -> void
+auto scheduler::run_record(task_id id, const std::shared_ptr<task>& record) -> void
 {
-    _queues[_active_queue.load(std::memory_order_acquire)].enqueue(std::move(new_task));
-}
+    record->phase.store(task_phase::running, std::memory_order_relaxed);
 
+    auto status{ invoke_definition(record->stop_source.get_token(), record->definition) };
 
-auto scheduler::process_queue(moodycamel::ConcurrentQueue<task>& queue) -> bool
-{
-    auto processed{ false };
-    auto item{ task{} };
-
-    while (queue.try_dequeue(item))
+    if (status == execution_status::running)
     {
-        if (item.mode == launch_policy::async)
+        if (record->mode != launch_policy::tick)
         {
-            process_task_completion(item.id, item.status, item.on_complete);
+            // running is only a legal outcome for tick — a plain next_frame definition returning
+            // it is a bug in that definition, not something to silently re-queue
+            status = execution_status::faulted;
         }
         else
         {
-            run_task(std::move(item));
-        }
+            // not done yet, call me again — go back to queued (not completed) so the next
+            // process() call runs this same record again instead of delivering it
+            record->phase.store(task_phase::queued, std::memory_order_relaxed);
+            _queue.enqueue(id);
 
-        processed = true;
+            return;
+        }
     }
 
-    return processed;
+    record->result = status;
+    record->phase.store(task_phase::completed, std::memory_order_release);
+
+    deliver(id, record);
+}
+
+
+auto scheduler::deliver(task_id id, const std::shared_ptr<task>& record) -> void
+{
+    // pairs with the release store in run_record/dispatch_async so `result` is visible here
+    // even when the two ran on different threads
+    std::ignore = record->phase.load(std::memory_order_acquire);
+
+    {
+        const auto _{ std::lock_guard{ _tasks_mutex } };
+
+        _tasks.erase(id);
+    }
+
+    std::ignore = record->on_complete.try_execute(record->result);
+}
+
+
+auto scheduler::process_one(task_id id) -> void
+{
+    const auto record{ find_record(id) };
+
+    if (!record)
+    {
+        return;
+    }
+
+    if (record->phase.load(std::memory_order_acquire) == task_phase::completed)
+    {
+        deliver(id, record);
+    }
+    else
+    {
+        run_record(id, record);
+    }
+}
+
+
+auto scheduler::find_record(task_id id) -> std::shared_ptr<task>
+{
+    const auto _{ std::lock_guard{ _tasks_mutex } };
+
+    const auto found{ _tasks.find(id) };
+
+    return found != _tasks.end() ? found->second : nullptr;
 }
 
 
 auto scheduler::drain() -> void
 {
-    for (auto& queue : _queues)
-    {
-        process_queue(queue);
-    }
-}
-
-
-auto scheduler::token_for(task_id id) -> std::stop_token
-{
-    if (const auto found{ _stop_sources.find(id) }; found != _stop_sources.end())
-    {
-        return found->second.get_token();
-    }
-
-    return {};
-}
-
-
-auto scheduler::run_task(task target) -> void
-{
-    auto token{ std::stop_token{} };
-
-    {
-        const auto _{ std::lock_guard{ _stop_sources_mutex } };
-
-        token = token_for(target.id);
-    }
-
-    const auto status{ invoke_definition(token, target.definition) };
-
-    process_task_completion(target.id, status, target.on_complete);
-}
-
-
-auto scheduler::invoke_definition(const std::stop_token& token, const task_definition& definition) -> execution_status
-{
-    if (token.stop_requested())
-    {
-        return execution_status::cancelled;
-    }
-
-    return definition.try_execute(token) ? execution_status::completed : execution_status::faulted;
-}
-
-
-auto scheduler::process_task_completion(task_id id, execution_status status, const task_completion& on_complete) -> void
-{
-    {
-        const auto _{ std::lock_guard{ _stop_sources_mutex } };
-
-        if (const auto found{ _stop_sources.find(id) }; found != _stop_sources.end())
-        {
-            if (found->second.stop_requested())
-            {
-                status = execution_status::cancelled;
-            }
-
-            _stop_sources.erase(found);
-        }
-    }
-
-    std::ignore = on_complete.try_execute(status);
-}
-
-
-auto scheduler::signal_async_complete() -> void
-{
-    if (_outstanding_async.fetch_sub(1, std::memory_order_acq_rel) == 1)
-    {
-        _shutdown_cv.notify_all();
-    }
+    _queue.drain([this] (task_id id) { process_one(id); });
 }
 
 }

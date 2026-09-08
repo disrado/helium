@@ -22,8 +22,8 @@ protected:
 public:
     static auto instance() -> t&
     {
-        static auto object_instance{ t{} };
-        return object_instance;
+        static auto object_instance{ t::create() };
+        return *object_instance;
     }
 };
 

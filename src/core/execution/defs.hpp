@@ -36,11 +36,22 @@ enum class launch_policy : uint8_t
     // runs immediately, during post()
     sync,
 
+    // dispatched to a worker thread
+    async,
+
     // runs on the next process() call
     next_frame,
 
-    // dispatched to a worker thread
-    async
+    // iterates through task every tick
+    tick
+};
+
+
+enum class task_phase : uint8_t
+{
+    queued,
+    running,
+    completed
 };
 
 
@@ -48,7 +59,10 @@ enum class execution_status : uint8_t
 {
     completed,
     cancelled,
-    faulted
+    faulted,
+
+    // not done, call me again — only legal for launch_policy::tick
+    running
 };
 
 
@@ -65,7 +79,7 @@ enum class action_state : uint8_t
 using action_context = std::map<std::string, std::any>;
 
 
-using task_definition = he::delegate<void(std::stop_token)>;
+using task_definition = he::delegate<execution_status(std::stop_token)>;
 using task_completion = he::delegate<void(execution_status)>;
 
 }

@@ -9,8 +9,7 @@
 
 #include <array>
 #include <atomic>
-#include <chrono>
-#include <condition_variable>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <stop_token>
@@ -19,18 +18,6 @@
 
 namespace he::exec
 {
-
-struct task final
-{
-public:
-    launch_policy mode;
-    task_definition definition;
-    task_completion on_complete;
-
-    task_id id{ invalid_task_id };
-    execution_status status{ execution_status::completed };
-};
-
 
 struct task_request final
 {
@@ -41,9 +28,47 @@ public:
 };
 
 
-class scheduler final: public he::singleton<scheduler>
+struct task final
 {
 public:
+
+
+public:
+    launch_policy mode;
+
+    task_definition definition;
+    task_completion on_complete;
+
+    std::stop_source stop_source;
+
+    std::atomic<task_phase> phase{ task_phase::queued };
+
+    execution_status result{ execution_status::completed };
+};
+
+
+class scheduler: public he::singleton<scheduler>, public std::enable_shared_from_this<scheduler>
+{
+private:
+    // resolves issue of producing tasks during queue processing without locking
+    class double_buffered_queue final
+    {
+    public:
+        auto enqueue(task_id id) -> void;
+        auto drain_active(const std::function<void(task_id)>& handler) -> void;
+        auto drain(const std::function<void(task_id)>& handler) -> void;
+
+    private:
+        std::array<moodycamel::ConcurrentQueue<task_id>, 2> _queues;
+        std::atomic<int> _active{ 0 };
+    };
+
+protected:
+    scheduler() = default;
+
+public:
+    static auto create() -> std::shared_ptr<scheduler>;
+
     ~scheduler() override;
 
     auto set_dispatcher(std::unique_ptr<dispatcher> new_dispatcher) -> void;
@@ -56,34 +81,23 @@ public:
 private:
     auto next_task_id() -> task_id;
 
-    auto dispatch_async(task new_task) -> void;
-    auto queue_next_frame(task new_task) -> void;
+    auto dispatch_async(task_id id, std::shared_ptr<task> record) -> void;
+    auto run_record(task_id id, const std::shared_ptr<task>& record) -> void;
+    auto deliver(task_id id, const std::shared_ptr<task>& record) -> void;
+    auto process_one(task_id id) -> void;
 
-    auto process_queue(moodycamel::ConcurrentQueue<task>& queue) -> bool;
+    auto find_record(task_id id) -> std::shared_ptr<task>;
     auto drain() -> void;
-
-    auto token_for(task_id id) -> std::stop_token;
-
-    auto run_task(task target) -> void;
-    auto invoke_definition(const std::stop_token& token, const task_definition& definition) -> execution_status;
-    auto process_task_completion(task_id id, execution_status status, const task_completion& on_complete) -> void;
-    auto signal_async_complete() -> void;
 
 public:
     static constexpr task_id invalid_task_id{ he::exec::invalid_task_id };
 
 private:
-    std::array<moodycamel::ConcurrentQueue<task>, 2> _queues;
-    std::atomic<int> _active_queue{ 0 };
+    double_buffered_queue _queue;
 
-    std::unordered_map<task_id, std::stop_source> _stop_sources;
-    std::mutex _stop_sources_mutex;
-
-    std::atomic<int> _outstanding_async{ 0 };
-
-    std::atomic<bool> _is_shutting_down{ false };
-    std::mutex _shutdown_mutex;
-    std::condition_variable _shutdown_cv;
+    std::unordered_map<task_id, std::shared_ptr<task>> _tasks;
+    std::mutex _tasks_mutex;
+    bool _is_shutting_down{ false };
 
     std::atomic<std::shared_ptr<dispatcher>> _dispatcher{ std::make_shared<thread_dispatcher>() };
 
