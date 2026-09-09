@@ -1,21 +1,23 @@
 #include "scheduler.hpp"
 
+#include "core/execution/task/async_task.hpp"
+#include "core/execution/task/ticking_task.hpp"
+
 #include <cassert>
-#include <ranges>
 #include <tuple>
 
 
 namespace
 {
 
-auto invoke_definition(const std::stop_token& token, const he::exec::task_definition& definition) -> he::exec::execution_status
+auto invoke_definition(const std::stop_token& token, const he::exec::task_definition& definition) -> he::exec::task_result
 {
     if (token.stop_requested())
     {
-        return he::exec::execution_status::cancelled;
+        return he::exec::task_result::cancelled;
     }
 
-    return definition.try_execute(token).value_or(he::exec::execution_status::faulted);
+    return definition.try_execute(token).value_or(he::exec::task_result::failed);
 }
 
 }
@@ -24,55 +26,34 @@ auto invoke_definition(const std::stop_token& token, const he::exec::task_defini
 namespace he::exec
 {
 
-auto scheduler::double_buffered_queue::enqueue(task_id id) -> void
-{
-    _queues[_active.load(std::memory_order_acquire)].enqueue(id);
-}
-
-
-auto scheduler::double_buffered_queue::drain_active(const std::function<void(task_id)>& handler) -> void
-{
-    const auto draining{ _active.load(std::memory_order_acquire) };
-
-    _active.store(1 - draining, std::memory_order_release);
-
-    auto id{ invalid_task_id };
-
-    while (_queues[draining].try_dequeue(id))
-    {
-        handler(id);
-    }
-}
-
-
-auto scheduler::double_buffered_queue::drain(const std::function<void(task_id)>& handler) -> void
-{
-    for (auto& queue : _queues)
-    {
-        auto id{ invalid_task_id };
-
-        while (queue.try_dequeue(id))
-        {
-            handler(id);
-        }
-    }
-}
-
-
 scheduler::~scheduler()
 {
+    std::vector<std::shared_ptr<task_base>> snapshot;
+
     {
-        const auto _{ std::lock_guard{ _tasks_mutex } };
+        const auto _{ std::lock_guard{ _mutex } };
 
         _is_shutting_down = true;
 
-        for (const auto& task : _tasks | std::views::values)
+        snapshot.reserve(_tasks.size());
+
+        for (const auto& [id, entry] : _tasks)
         {
-            task->stop_source.request_stop();
+            snapshot.push_back(entry);
         }
     }
 
-    drain();
+    for (auto& entry : snapshot)
+    {
+        entry->deliver_if_finished();   // flush already-completed-but-unpolled async work first — closes
+                                        // a real gap where a worker that finished (e.g. a synchronous
+                                        // test dispatcher, or one that simply raced ahead of the last
+                                        // process() call) would otherwise never be observed and its
+                                        // result would be silently lost
+
+        entry->request_cancel();       // no-op if already finished above; otherwise sets the stop flag,
+                                        // or delivers synchronously for a genuinely idle entry
+    }
 }
 
 
@@ -91,61 +72,113 @@ auto scheduler::set_dispatcher(std::unique_ptr<dispatcher> new_dispatcher) -> vo
 }
 
 
-auto scheduler::post(task_request request) -> task_id
+auto scheduler::next_task_id() -> task_id
 {
-    switch (request.mode)
+    return _next_id.fetch_add(1, std::memory_order_relaxed);
+}
+
+
+auto scheduler::post(sync_task_request request) -> task_id
+{
     {
-        case launch_policy::sync:
+        const auto _{ std::lock_guard{ _mutex } };
+
+        if (_is_shutting_down)
         {
-            run_inline(std::move(request));
             return invalid_task_id;
         }
-        case launch_policy::async:
-        {
-            if (const auto task{ allocate_task(std::move(request)) })
-            {
-                dispatch_async(task);
-                return task->id;
-            }
-
-            break;
-        }
-        case launch_policy::next_frame:
-        {
-            [[fallthrough]];
-        }
-        case launch_policy::tick:
-        {
-            if (const auto task{ allocate_task(std::move(request)) })
-            {
-                _queue.enqueue(task->id);
-                return task->id;
-            }
-
-            break;
-        }
-
     }
+
+    const auto status{ invoke_definition(std::stop_token{}, request.definition) };
+
+    std::ignore = request.on_complete.try_execute(status);
 
     return invalid_task_id;
 }
 
 
+auto scheduler::post(async_task_request request) -> task_id
+{
+    assert((!request.repetitions || request.repetitions.value() > 0) && "repetitions{0} has no defined meaning");
+
+    auto entry{ std::make_shared<async_task>() };
+
+    entry->id = next_task_id();
+    entry->definition = std::move(request.definition);
+    entry->on_complete = std::move(request.on_complete);
+    entry->trigger_point = std::chrono::steady_clock::now() + request.initial_delay;
+    entry->interval = request.interval;
+    entry->repetitions_left = request.repetitions;
+
+    {
+        const auto _{ std::lock_guard{ _mutex } };
+
+        if (_is_shutting_down)
+        {
+            return invalid_task_id;
+        }
+
+        _tasks.emplace(entry->id, entry);
+    }
+
+    if (std::chrono::steady_clock::now() >= entry->trigger_point)
+    {
+        entry->dispatch(*_dispatcher.load());
+    }
+
+    return entry->id;
+}
+
+
+auto scheduler::post(ticking_task_request request) -> task_id
+{
+    assert((!request.repetitions || request.repetitions.value() > 0) && "repetitions{0} has no defined meaning");
+
+    auto entry{ std::make_shared<ticking_task>() };
+
+    entry->id = next_task_id();
+    entry->definition = std::move(request.definition);
+    entry->on_complete = std::move(request.on_complete);
+    entry->trigger_point = std::chrono::steady_clock::now() + request.initial_delay;
+    entry->interval = request.interval;
+    entry->repetitions_left = request.repetitions;
+
+    const auto _{ std::lock_guard{ _mutex } };
+
+    if (_is_shutting_down)
+    {
+        return invalid_task_id;
+    }
+
+    _tasks.emplace(entry->id, entry);
+
+    return entry->id;
+}
+
+
 auto scheduler::cancel(task_id id) -> bool
 {
-    const auto task{ find_task(id) };
+    std::shared_ptr<task_base> entry;
 
-    if (!task)
     {
-        return false;
+        const auto _{ std::lock_guard{ _mutex } };
+
+        const auto it{ _tasks.find(id) };
+
+        if (it == _tasks.end())
+        {
+            return false;
+        }
+
+        entry = it->second;
     }
 
-    if (task->phase.load(std::memory_order_acquire) == task_phase::completed)
+    if (entry->request_cancel())   // not locked - might execute completion callbacks
     {
-        return false;
-    }
+        const auto _{ std::lock_guard{ _mutex } };
 
-    task->stop_source.request_stop();
+        _tasks.erase(id);   // no-op if something else already erased it — safe
+    }
 
     return true;
 }
@@ -153,202 +186,28 @@ auto scheduler::cancel(task_id id) -> bool
 
 auto scheduler::process() -> void
 {
-    _queue.drain_active([this] (task_id id) { process_task(id); });
-}
-
-
-auto scheduler::next_task_id() -> task_id
-{
-    return _next_id.fetch_add(1, std::memory_order_relaxed);
-}
-
-
-auto scheduler::allocate_task(task_request request) -> std::shared_ptr<task>
-{
-    auto instance{ std::make_shared<task>() };
-
-    instance->id = next_task_id();
-    instance->mode = request.mode;
-    instance->definition = std::move(request.definition);
-    instance->on_complete = std::move(request.on_complete);
+    _snapshot.clear();
 
     {
-        const auto _{ std::lock_guard{ _tasks_mutex } };
+        const auto _{ std::lock_guard{ _mutex } };
 
-        if (_is_shutting_down)
+        for (const auto& [id, entry] : _tasks)
         {
-            instance = nullptr;
-        }
-        else
-        {
-            _tasks.emplace(instance->id, instance);
+            _snapshot.emplace_back(id, entry);
         }
     }
 
-    return instance;
-}
+    auto& dispatcher{ *_dispatcher.load() };
 
-
-auto scheduler::dispatch_async(std::shared_ptr<task> target_task) -> void
-{
-    target_task->phase.store(task_phase::running, std::memory_order_relaxed);
-
-    _dispatcher.load()->dispatch(
-        [weak{ weak_from_this() }, target_task, stop_token{ target_task->stop_source.get_token() }]() mutable
-        {
-            target_task->result = invoke_definition(stop_token, target_task->definition);
-            target_task->phase.store(task_phase::completed, std::memory_order_release);
-
-            if (const auto self{ weak.lock() })
-            {
-                self->_queue.enqueue(target_task->id);
-            }
-        });
-}
-
-
-auto scheduler::run_inline(task_request request) -> void
-{
+    for (auto& [id, entry] : _snapshot)
     {
-        const auto _{ std::lock_guard{ _tasks_mutex } };
-
-        if (_is_shutting_down)
+        if (entry->tick(dispatcher))
         {
-            return;
+            const auto _{ std::lock_guard{ _mutex } };
+
+            _tasks.erase(id);   // no-op if already erased elsewhere
         }
     }
-
-    const auto status{ invoke_definition(std::stop_token{}, request.definition) };
-
-    std::ignore = request.on_complete.try_execute(status);
-}
-
-
-auto scheduler::run_sync(std::shared_ptr<task> target_task) -> void
-{
-    target_task->phase.store(task_phase::running, std::memory_order_relaxed);
-
-    target_task->result = invoke_definition(target_task->stop_source.get_token(), target_task->definition);
-
-    target_task->phase.store(task_phase::completed, std::memory_order_relaxed);
-
-    run_completion(target_task);
-}
-
-
-auto scheduler::run_tick(std::shared_ptr<task> target_task) -> void
-{
-    target_task->phase.store(task_phase::running, std::memory_order_relaxed);
-
-    auto status{ invoke_definition(target_task->stop_source.get_token(), target_task->definition) };
-
-    if (status == execution_status::running)
-    {
-        target_task->phase.store(task_phase::queued, std::memory_order_relaxed);
-        _queue.enqueue(target_task->id);
-
-        return;
-    }
-
-    target_task->result = status;
-    target_task->phase.store(task_phase::completed, std::memory_order_relaxed);
-
-    run_completion(target_task);
-}
-
-
-auto scheduler::run_completion(std::shared_ptr<task> target_task) -> void
-{
-    {
-        const auto _{ std::lock_guard{ _tasks_mutex } };
-
-        _tasks.erase(target_task->id);
-    }
-
-    std::ignore = target_task->on_complete.try_execute(target_task->result);
-}
-
-
-auto scheduler::process_task(task_id id) -> void
-{
-    const auto task{ find_task(id) };
-    if (!task)
-    {
-        return;
-    }
-
-    // acquire pairs with dispatch_async's release store - makes 'result' (yes, result) written
-    // on the worker thread visible to run_completion()
-    switch (task->phase.load(std::memory_order_acquire))
-    {
-        case task_phase::running:
-        {
-            // nothing to do
-            return;
-        }
-        case task_phase::completed:
-        {
-            run_completion(task);
-            break;
-        }
-        case task_phase::queued:
-        {
-            process_queued(task);
-            break;
-        }
-        default:
-        {
-            std::unreachable();
-        }
-    }
-}
-
-
-auto scheduler::process_queued(std::shared_ptr<task> target_task) -> void
-{
-    switch (target_task->mode)
-    {
-        case launch_policy::sync:
-        {
-            // nothing to do
-            break;
-        }
-        case launch_policy::async:
-        {
-            // nothing to do
-            break;
-        }
-        case launch_policy::next_frame:
-        {
-            run_sync(target_task);
-            break;
-        }
-        case launch_policy::tick:
-        {
-            run_tick(target_task);
-            break;
-        }
-        default:
-        {
-            std::unreachable();
-        }
-    }
-}
-
-
-auto scheduler::find_task(task_id id) -> std::shared_ptr<task>
-{
-    const auto _{ std::lock_guard{ _tasks_mutex } };
-
-    const auto found{ _tasks.find(id) };
-
-    return found != _tasks.end() ? found->second : nullptr;
-}
-
-
-auto scheduler::drain() -> void
-{
-    _queue.drain([this] (task_id id) { process_task(id); });
 }
 
 }

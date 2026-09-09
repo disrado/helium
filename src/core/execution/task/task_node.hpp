@@ -3,10 +3,12 @@
 #include "core/delegate/delegate.hpp"
 #include "core/delegate/multicast_delegate.hpp"
 #include "core/execution/defs.hpp"
+#include "core/execution/scheduler.hpp"
 
 #include <atomic>
 #include <memory>
 #include <optional>
+#include <variant>
 #include <vector>
 
 
@@ -46,10 +48,9 @@ public:
     auto merge_context(action_context source) -> void;
 
 public:
-    launch_policy mode{ launch_policy::sync };
-    task_definition definition;
+    std::variant<std::monostate, sync_task_request, async_task_request, ticking_task_request> request;
     delegate<bool()> pre_condition;
-    multicast_delegate<execution_status> post_execution;
+    multicast_delegate<task_result> post_execution;
 
     std::atomic<task_id> id{ invalid_task_id };
 

@@ -1,5 +1,5 @@
 #include "core/delegate/delegate.hpp"
-#include "core/execution/task_graph.hpp"
+#include "core/execution/task/task_graph.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -52,12 +52,15 @@ TEST_CASE("task_graph activation")
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph->root().definition.bind(
-            [&ran] (std::stop_token)
-            {
-                ran = true;
-                return he::exec::execution_status::completed;
-            });
+        graph->root().request = he::exec::sync_task_request{
+            .definition{
+                [&ran] (std::stop_token)
+                {
+                    ran = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         graph->activate(graph->root());
 
@@ -70,13 +73,16 @@ TEST_CASE("task_graph activation")
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph->root().definition.bind(
-            [&order] (std::stop_token)
-            {
-                order += "d";
-                return he::exec::execution_status::completed;
-            });
-        graph->root().post_execution.bind([&order] (he::exec::execution_status) { order += "p"; });
+        graph->root().request = he::exec::sync_task_request{
+            .definition{
+                [&order] (std::stop_token)
+                {
+                    order += "d";
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
+        graph->root().post_execution.bind([&order] (he::exec::task_result) { order += "p"; });
 
         graph->activate(graph->root());
 
@@ -89,7 +95,7 @@ TEST_CASE("task_graph activation")
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph->root().post_execution.bind([&fired] (he::exec::execution_status) { fired = true; });
+        graph->root().post_execution.bind([&fired] (he::exec::task_result) { fired = true; });
 
         graph->activate(graph->root());
 
@@ -103,13 +109,16 @@ TEST_CASE("task_graph activation")
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph->root().definition.bind(
-            [&ran] (std::stop_token)
-            {
-                ran = true;
-                return he::exec::execution_status::completed;
-            });
-        graph->root().post_execution.bind([&fired] (he::exec::execution_status) { fired = true; });
+        graph->root().request = he::exec::sync_task_request{
+            .definition{
+                [&ran] (std::stop_token)
+                {
+                    ran = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
+        graph->root().post_execution.bind([&fired] (he::exec::task_result) { fired = true; });
         graph->root().pre_condition.bind([] { return false; });
 
         graph->activate(graph->root());
@@ -124,12 +133,15 @@ TEST_CASE("task_graph activation")
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph->root().definition.bind(
-            [&ran] (std::stop_token)
-            {
-                ran = true;
-                return he::exec::execution_status::completed;
-            });
+        graph->root().request = he::exec::sync_task_request{
+            .definition{
+                [&ran] (std::stop_token)
+                {
+                    ran = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         graph->activate(graph->root());
 
@@ -147,14 +159,17 @@ TEST_CASE("task_graph traversal")
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
         auto& child{ graph->root().add_child() };
-        child.definition.bind(
-            [&ran] (std::stop_token)
-            {
-                ran = true;
-                return he::exec::execution_status::completed;
-            });
+        child.request = he::exec::sync_task_request{
+            .definition{
+                [&ran] (std::stop_token)
+                {
+                    ran = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
-        graph->root().post_execution.bind([&child] (he::exec::execution_status) { child.activate(); });
+        graph->root().post_execution.bind([&child] (he::exec::task_result) { child.activate(); });
 
         graph->activate(graph->root());
 
@@ -169,24 +184,30 @@ TEST_CASE("task_graph traversal")
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
         auto& first{ graph->root().add_child() };
-        first.definition.bind(
-            [&first_ran] (std::stop_token)
-            {
-                first_ran = true;
-                return he::exec::execution_status::completed;
-            });
+        first.request = he::exec::sync_task_request{
+            .definition{
+                [&first_ran] (std::stop_token)
+                {
+                    first_ran = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         auto& second{ graph->root().add_child() };
-        second.definition.bind(
-            [&second_ran] (std::stop_token)
-            {
-                second_ran = true;
-                return he::exec::execution_status::completed;
-            });
+        second.request = he::exec::sync_task_request{
+            .definition{
+                [&second_ran] (std::stop_token)
+                {
+                    second_ran = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         graph->root().post_execution.bind(
             [&first, &second]
-            (he::exec::execution_status)
+            (he::exec::task_result)
             {
                 first.activate();
                 second.activate();
@@ -206,22 +227,28 @@ TEST_CASE("task_graph traversal")
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
         auto& taken{ graph->root().add_child() };
-        taken.definition.bind(
-            [&taken_ran] (std::stop_token)
-            {
-                taken_ran = true;
-                return he::exec::execution_status::completed;
-            });
+        taken.request = he::exec::sync_task_request{
+            .definition{
+                [&taken_ran] (std::stop_token)
+                {
+                    taken_ran = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         auto& skipped{ graph->root().add_child() };
-        skipped.definition.bind(
-            [&skipped_ran] (std::stop_token)
-            {
-                skipped_ran = true;
-                return he::exec::execution_status::completed;
-            });
+        skipped.request = he::exec::sync_task_request{
+            .definition{
+                [&skipped_ran] (std::stop_token)
+                {
+                    skipped_ran = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
-        graph->root().post_execution.bind([&taken] (he::exec::execution_status) { taken.activate(); });
+        graph->root().post_execution.bind([&taken] (he::exec::task_result) { taken.activate(); });
 
         graph->activate(graph->root());
 
@@ -239,12 +266,15 @@ TEST_CASE("task_graph node activate")
 
         auto graph{ std::make_shared<he::exec::task_graph>() };
 
-        graph->root().definition.bind(
-            [&ran] (std::stop_token)
-            {
-                ran = true;
-                return he::exec::execution_status::completed;
-            });
+        graph->root().request = he::exec::sync_task_request{
+            .definition{
+                [&ran] (std::stop_token)
+                {
+                    ran = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         graph->root().activate();
 
@@ -333,12 +363,15 @@ TEST_CASE("task_node links")
         auto& target{ graph->root().add_child() };
 
         auto activated{ false };
-        target.definition.bind(
-            [&activated] (std::stop_token)
-            {
-                activated = true;
-                return he::exec::execution_status::completed;
-            });
+        target.request = he::exec::sync_task_request{
+            .definition{
+                [&activated] (std::stop_token)
+                {
+                    activated = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         graph->root().add_link(
             {
@@ -359,12 +392,15 @@ TEST_CASE("task_node links")
         auto& target{ graph->root().add_child() };
 
         auto activated{ false };
-        target.definition.bind(
-            [&activated] (std::stop_token)
-            {
-                activated = true;
-                return he::exec::execution_status::completed;
-            });
+        target.request = he::exec::sync_task_request{
+            .definition{
+                [&activated] (std::stop_token)
+                {
+                    activated = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         graph->root().add_link(
             {
@@ -387,18 +423,24 @@ TEST_CASE("task_node links")
 
         auto first_activated{ false };
         auto second_activated{ false };
-        first_target.definition.bind(
-            [&first_activated] (std::stop_token)
-            {
-                first_activated = true;
-                return he::exec::execution_status::completed;
-            });
-        second_target.definition.bind(
-            [&second_activated] (std::stop_token)
-            {
-                second_activated = true;
-                return he::exec::execution_status::completed;
-            });
+        first_target.request = he::exec::sync_task_request{
+            .definition{
+                [&first_activated] (std::stop_token)
+                {
+                    first_activated = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
+        second_target.request = he::exec::sync_task_request{
+            .definition{
+                [&second_activated] (std::stop_token)
+                {
+                    second_activated = true;
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         const auto always{ he::delegate<bool(he::exec::action_state)>{ [] (he::exec::action_state) { return true; } } };
 
@@ -419,13 +461,16 @@ TEST_CASE("task_node links")
         graph->root().set_context(he::exec::action_context{ { "key", std::string{ "value" } } });
 
         auto received{ std::optional<std::string>{} };
-        target.definition.bind(
-            [&target, &received] (std::stop_token)
-            {
-                received = std::any_cast<std::string>(target.get_context().at("key"));
+        target.request = he::exec::sync_task_request{
+            .definition{
+                [&target, &received] (std::stop_token)
+                {
+                    received = std::any_cast<std::string>(target.get_context().at("key"));
 
-                return he::exec::execution_status::completed;
-            });
+                    return he::exec::task_result::succeeded;
+                } },
+            .on_complete{}
+        };
 
         graph->root().add_link(
             {

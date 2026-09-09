@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/execution/task_node.hpp"
+#include "core/execution/task/task_node.hpp"
 
 #include <memory>
 #include <mutex>

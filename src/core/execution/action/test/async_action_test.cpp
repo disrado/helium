@@ -2,7 +2,7 @@
 #include "core/execution/action/async_action.hpp"
 #include "core/execution/run.hpp"
 #include "core/execution/scheduler.hpp"
-#include "core/execution/task_graph.hpp"
+#include "core/execution/task/task_graph.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -11,6 +11,7 @@
 #include <stop_token>
 #include <thread>
 #include <tuple>
+#include <variant>
 
 
 TEST_CASE("async_action")
@@ -33,7 +34,7 @@ TEST_CASE("async_action")
         auto graph{ std::make_shared<he::exec::task_graph>() };
         auto& node{ instance->translate_into_graph(graph->root()).start };
 
-        REQUIRE(node.mode == he::exec::launch_policy::async);
+        REQUIRE(std::holds_alternative<he::exec::async_task_request>(node.request));
     }
 
     SECTION("wires its own execute() as the definition")
@@ -51,10 +52,10 @@ TEST_CASE("async_action")
         auto graph{ std::make_shared<he::exec::task_graph>() };
         auto& node{ instance->translate_into_graph(graph->root()).start };
 
-        std::ignore = node.definition.try_execute(std::stop_token{});
+        const auto result{ std::get<he::exec::async_task_request>(node.request).definition.try_execute(std::stop_token{}) };
 
         REQUIRE(ran);
-        REQUIRE(node.state == he::async_action::state::succeeded);
+        REQUIRE(result == he::exec::task_result::succeeded);
     }
 
     SECTION("reports failure")
@@ -64,9 +65,9 @@ TEST_CASE("async_action")
         auto graph{ std::make_shared<he::exec::task_graph>() };
         auto& node{ instance->translate_into_graph(graph->root()).start };
 
-        std::ignore = node.definition.try_execute(std::stop_token{});
+        const auto result{ std::get<he::exec::async_task_request>(node.request).definition.try_execute(std::stop_token{}) };
 
-        REQUIRE(node.state == he::async_action::state::failed);
+        REQUIRE(result == he::exec::task_result::failed);
     }
 }
 

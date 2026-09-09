@@ -79,11 +79,11 @@ TEST_CASE("run")
         class custom_action final: public he::action
         {
         public:
-            auto execute(he::exec::task_node& self, std::stop_token) -> void override
+            auto execute(he::exec::task_node&, std::stop_token) -> result override
             {
                 custom_execute_ran = true;
 
-                self.state = state::succeeded;
+                return result::succeeded;
             }
         };
 
@@ -191,20 +191,20 @@ TEST_CASE("run example")
         class plain_action final: public he::action
         {
         public:
-            auto execute(he::exec::task_node& self, std::stop_token) -> void override
+            auto execute(he::exec::task_node&, std::stop_token) -> result override
             {
-                self.state = state::succeeded;
+                return result::succeeded;
             }
         };
 
         class label_reader_action final: public he::action
         {
         public:
-            auto execute(he::exec::task_node& self, std::stop_token) -> void override
+            auto execute(he::exec::task_node& self, std::stop_token) -> result override
             {
                 std::ignore = std::any_cast<std::string>(self.get_context().at("label"));
 
-                self.state = state::failed;
+                return result::failed;
             }
         };
 

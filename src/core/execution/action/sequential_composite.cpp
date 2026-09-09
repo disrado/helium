@@ -1,6 +1,22 @@
 #include "sequential_composite.hpp"
 
 
+namespace
+{
+
+auto to_task_result(he::exec::action_state state) -> he::exec::task_result
+{
+    switch (state)
+    {
+        case he::exec::action_state::succeeded: return he::exec::task_result::succeeded;
+        case he::exec::action_state::cancelled: return he::exec::task_result::cancelled;
+        default: return he::exec::task_result::failed;
+    }
+}
+
+}
+
+
 namespace he
 {
 
@@ -17,10 +33,10 @@ auto sequential_composite::setup_node(exec::task_node& self_node) -> exec::task_
         setup_step_node(self_node, completion_node, segments[i], next_step_start);
     }
 
-    completion_node.post_execution.bind([&completion_node] (exec::execution_status) { completion_node.resolve_links(); });
+    completion_node.post_execution.bind([&completion_node] (exec::task_result) { completion_node.resolve_links(); });
 
     self_node.post_execution.bind(
-        [&self_node, first{ &segments.front().start }] (exec::execution_status)
+        [&self_node, first{ &segments.front().start }] (exec::task_result)
         {
             if (self_node.cancel_requested)
             {
@@ -58,14 +74,14 @@ auto sequential_composite::setup_step_node(
     exec::task_node* next_step_start) -> void
 {
     step.end.post_execution.bind(
-        [&self_node, &completion_node, step_start{ &step.start }, next_step_start] (exec::execution_status)
+        [&self_node, &completion_node, step_start{ &step.start }, next_step_start] (exec::task_result)
         {
             if (self_node.cancel_requested)
             {
                 self_node.state = exec::action_state::cancelled;
                 completion_node.state = exec::action_state::cancelled;
 
-                std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);
+                std::ignore = completion_node.post_execution.execute(exec::task_result::cancelled);
 
                 return;
             }
@@ -83,7 +99,7 @@ auto sequential_composite::setup_step_node(
                 completion_node.state = step_result;
                 completion_node.set_context(step_start->get_context());
 
-                std::ignore = completion_node.post_execution.execute(exec::execution_status::completed);
+                std::ignore = completion_node.post_execution.execute(to_task_result(step_result));
             }
         });
 }

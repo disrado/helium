@@ -8,25 +8,21 @@
 namespace he
 {
 
-class ticking_action final: public exec::action_base<ticking_action>
+class ticking_action: public exec::action_base<ticking_action>
 {
-public:
-    enum class result : uint8_t
-    {
-        running,
-        succeeded,
-        failed
-    };
-
 public:
     using state = exec::basic_action::state;
     using context = exec::basic_action::context;
+    using result = exec::tick_result;   // independent of basic_action::result (task_result) — ticking
+                                        // genuinely needs `running`, which a one-shot action never does
+
+    ticking_action() = default;
 
     template <typename callable_t>
         requires std::is_invocable_r_v<result, callable_t, const context&, std::stop_token>
     explicit ticking_action(callable_t definition);
 
-    auto execute(exec::task_node& self_node, std::stop_token token) -> void override;
+    virtual auto execute(exec::task_node& self_node, std::stop_token token = {}) -> result;
 
 protected:
     auto setup_node(exec::task_node& self_node) -> exec::task_node& override;

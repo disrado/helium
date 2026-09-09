@@ -2,66 +2,82 @@
 
 #include "core/execution/defs.hpp"
 #include "core/execution/dispatcher.hpp"
+#include "core/execution/task/task_base.hpp"
 #include "core/execution/thread_dispatcher.hpp"
 #include "core/singleton.hpp"
 
-#include <moodycamel/concurrentqueue.h>
-
-#include <array>
 #include <atomic>
-#include <functional>
+#include <chrono>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <stop_token>
+#include <type_traits>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 
 namespace he::exec
 {
 
-struct task_request final
+template <typename callable_t>
+    requires std::is_invocable_r_v<bool, callable_t> || std::is_invocable_r_v<task_result, callable_t, std::stop_token>
+auto make_task_definition(callable_t fn) -> task_definition
 {
-public:
-    launch_policy mode;
-    task_definition definition;
-    task_completion on_complete;
-};
-
-
-struct task final
-{
-public:
-    task_id id;
-
-    launch_policy mode;
-
-    task_definition definition;
-    task_completion on_complete;
-
-    std::stop_source stop_source;
-
-    std::atomic<task_phase> phase{ task_phase::queued };
-
-    execution_status result{ execution_status::completed };
-};
-
-
-class scheduler: public he::singleton<scheduler>, public std::enable_shared_from_this<scheduler>
-{
-private:
-    // resolves issue of producing tasks during queue processing without locking
-    class double_buffered_queue final
+    if constexpr (std::is_invocable_r_v<task_result, callable_t, std::stop_token>)
     {
-    public:
-        auto enqueue(task_id id) -> void;
-        auto drain_active(const std::function<void(task_id)>& handler) -> void;
-        auto drain(const std::function<void(task_id)>& handler) -> void;
+        return task_definition{ std::move(fn) };
+    }
+    else
+    {
+        return task_definition{ [fn{ std::move(fn) }] (std::stop_token token) mutable -> task_result
+        {
+            if (fn())
+            {
+                return task_result::succeeded;
+            }
 
-    private:
-        std::array<moodycamel::ConcurrentQueue<task_id>, 2> _queues;
-        std::atomic<int> _active{ 0 };
-    };
+            return token.stop_requested() ? task_result::cancelled : task_result::failed;
+        } };
+    }
+}
 
+
+struct sync_task_request final
+{
+public:
+    task_definition definition;
+    task_completion on_complete;
+};
+
+
+struct async_task_request final
+{
+public:
+    task_definition definition;
+    task_completion on_complete;
+
+    std::chrono::steady_clock::duration initial_delay{};
+    std::chrono::steady_clock::duration interval{};
+    std::optional<std::size_t> repetitions{ 1 }; // nullopt for perpetual repeats
+};
+
+
+struct ticking_task_request final
+{
+public:
+    ticking_definition definition;
+    task_completion on_complete;
+
+    std::chrono::steady_clock::duration initial_delay{};
+    std::chrono::steady_clock::duration interval{};
+    std::optional<std::size_t> repetitions{ 1 };
+};
+
+
+class scheduler: public he::singleton<scheduler>
+{
 public:
     ~scheduler() override;
 
@@ -69,9 +85,11 @@ public:
 
     auto set_dispatcher(std::unique_ptr<dispatcher> new_dispatcher) -> void;
 
-    auto post(task_request request) -> task_id;
-    auto cancel(task_id id) -> bool;
+    auto post(sync_task_request request) -> task_id;
+    auto post(async_task_request request) -> task_id;
+    auto post(ticking_task_request request) -> task_id;
 
+    auto cancel(task_id id) -> bool;
     auto process() -> void;
 
 protected:
@@ -80,32 +98,18 @@ protected:
 private:
     auto next_task_id() -> task_id;
 
-    auto allocate_task(task_request request) -> std::shared_ptr<task>;
-
-    auto dispatch_async(std::shared_ptr<task> target) -> void;
-
-    auto run_inline(task_request request) -> void;
-    auto run_sync(std::shared_ptr<task> target) -> void;
-    auto run_tick(std::shared_ptr<task> target) -> void;
-
-    auto run_completion(std::shared_ptr<task> target) -> void;
-
-    auto process_task(task_id id) -> void;
-    auto process_queued(std::shared_ptr<task> task) -> void;
-
-    auto find_task(task_id id) -> std::shared_ptr<task>;
-    auto drain() -> void;
-
 private:
-    double_buffered_queue _queue;
+    std::unordered_map<task_id, std::shared_ptr<task_base>> _tasks;
+    std::mutex _mutex;
 
-    std::unordered_map<task_id, std::shared_ptr<task>> _tasks;
-    std::mutex _tasks_mutex;
     bool _is_shutting_down{ false };
 
     std::atomic<std::shared_ptr<dispatcher>> _dispatcher{ std::make_shared<thread_dispatcher>() };
-
     std::atomic<task_id> _next_id{ invalid_task_id + 1 };
+
+    // reusable buffer for task processing, because tasks can add/cancel themselves/other tasks
+    // cleared, not reconstructed, so capacity stabilizes over time
+    std::vector<std::pair<task_id, std::shared_ptr<task_base>>> _snapshot;
 };
 
 }

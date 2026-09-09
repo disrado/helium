@@ -27,10 +27,11 @@ public:
     {
     }
 
-    auto execute(he::exec::task_node& self, std::stop_token) -> void override
+    auto execute(he::exec::task_node& self, std::stop_token) -> result override
     {
         self.merge_context(_ctx);
-        self.state = state::succeeded;
+
+        return result::succeeded;
     }
 
 private:

@@ -1,6 +1,6 @@
 #include "core/delegate/delegate.hpp"
 #include "core/execution/action/action.hpp"
-#include "core/execution/task_graph.hpp"
+#include "core/execution/task/task_graph.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -9,6 +9,7 @@
 #include <stop_token>
 #include <string>
 #include <tuple>
+#include <variant>
 
 
 TEST_CASE("action")
@@ -39,10 +40,10 @@ TEST_CASE("action")
         auto graph{ std::make_shared<he::exec::task_graph>() };
         auto& node{ instance->translate_into_graph(graph->root()).start };
 
-        std::ignore = node.definition.try_execute(std::stop_token{});
+        const auto result{ std::get<he::exec::sync_task_request>(node.request).definition.try_execute(std::stop_token{}) };
 
         REQUIRE(ran);
-        REQUIRE(node.state == he::action::state::succeeded);
+        REQUIRE(result == he::exec::task_result::succeeded);
     }
 
     SECTION("reports failure")
@@ -52,9 +53,9 @@ TEST_CASE("action")
         auto graph{ std::make_shared<he::exec::task_graph>() };
         auto& node{ instance->translate_into_graph(graph->root()).start };
 
-        std::ignore = node.definition.try_execute(std::stop_token{});
+        const auto result{ std::get<he::exec::sync_task_request>(node.request).definition.try_execute(std::stop_token{}) };
 
-        REQUIRE(node.state == he::action::state::failed);
+        REQUIRE(result == he::exec::task_result::failed);
     }
 }
 
@@ -201,11 +202,11 @@ TEST_CASE("action chaining")
         class custom_action final: public he::action
         {
         public:
-            auto execute(he::exec::task_node& self, std::stop_token) -> void override
+            auto execute(he::exec::task_node&, std::stop_token) -> result override
             {
                 custom_execute_ran = true;
 
-                self.state = state::succeeded;
+                return result::succeeded;
             }
         };
 

@@ -2,6 +2,25 @@
 
 #include "core/execution/scheduler.hpp"
 
+#include <tuple>
+#include <utility>
+#include <variant>
+
+
+namespace
+{
+
+template <class... Ts>
+struct overloaded: Ts...
+{
+    using Ts::operator()...;
+};
+
+template <class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
+
+}
+
 
 namespace he::exec
 {
@@ -40,7 +59,7 @@ auto task_graph::cancel_subtree(task_node& current) -> void
         {
             scheduler::instance().cancel(current.id);
         }
-        else if (current.definition.is_bound())
+        else if (!std::holds_alternative<std::monostate>(current.request))
         {
             current.state = action_state::cancelled;
         }
@@ -111,25 +130,52 @@ auto task_graph::run_node(task_node& current) -> void
         return;
     }
 
-    if (!current.definition.is_bound())
+    if (std::holds_alternative<std::monostate>(current.request))
     {
-        std::ignore = current.post_execution.execute(execution_status::completed);
+        std::ignore = current.post_execution.execute(task_result::succeeded);
 
         return;
     }
 
-    current.id = scheduler::instance().post(
-        task_request{
-            .mode{ current.mode },
-            .definition{ current.definition },
-            .on_complete{
-                [self{ shared_from_this() }, current{ &current }] (execution_status status)
+    current.id = std::visit(overloaded{
+        [] (std::monostate) -> task_id { return invalid_task_id; },   // unreachable given the early-out above
+        [&] (sync_task_request req) -> task_id
+        {
+            req.on_complete.bind(
+                [self{ shared_from_this() }, current{ &current }] (task_result status)
                 {
                     std::ignore = current->post_execution.execute(status);
 
                     self->advance();
-                } }
-        });
+                });
+
+            return scheduler::instance().post(std::move(req));
+        },
+        [&] (async_task_request req) -> task_id
+        {
+            req.on_complete.bind(
+                [self{ shared_from_this() }, current{ &current }] (task_result status)
+                {
+                    std::ignore = current->post_execution.execute(status);
+
+                    self->advance();
+                });
+
+            return scheduler::instance().post(std::move(req));
+        },
+        [&] (ticking_task_request req) -> task_id
+        {
+            req.on_complete.bind(
+                [self{ shared_from_this() }, current{ &current }] (task_result status)
+                {
+                    std::ignore = current->post_execution.execute(status);
+
+                    self->advance();
+                });
+
+            return scheduler::instance().post(std::move(req));
+        }
+    }, current.request);
 }
 
 }

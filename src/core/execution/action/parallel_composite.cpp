@@ -24,17 +24,17 @@ auto parallel_composite::setup_node(exec::task_node& self_node) -> exec::task_no
         setup_branch_node(self_node, join_node, branch, state);
     }
 
-    join_node.post_execution.bind([&join_node] (exec::execution_status) { join_node.resolve_links(); });
+    join_node.post_execution.bind([&join_node] (exec::task_result) { join_node.resolve_links(); });
 
     self_node.post_execution.bind(
-        [&self_node, &join_node, branches] (exec::execution_status)
+        [&self_node, &join_node, branches] (exec::task_result)
         {
             if (self_node.cancel_requested)
             {
                 self_node.state = exec::action_state::cancelled;
                 join_node.state = exec::action_state::cancelled;
 
-                std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
+                std::ignore = join_node.post_execution.execute(exec::task_result::cancelled);
 
                 return;
             }
@@ -71,7 +71,7 @@ auto parallel_composite::setup_branch_node(
     const std::shared_ptr<join_state>& state) -> void
 {
     branch.end.post_execution.bind(
-        [&self_node, &join_node, branch_start{ &branch.start }, state] (exec::execution_status)
+        [&self_node, &join_node, branch_start{ &branch.start }, state] (exec::task_result)
         {
             const auto cancel_requested{ self_node.cancel_requested.load() };
 
@@ -90,7 +90,7 @@ auto parallel_composite::setup_branch_node(
                 self_node.state = exec::action_state::cancelled;
                 join_node.state = exec::action_state::cancelled;
 
-                std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
+                std::ignore = join_node.post_execution.execute(exec::task_result::cancelled);
             }
             else
             {
@@ -110,7 +110,7 @@ auto parallel_composite::resolve_join(exec::task_node& self_node, exec::task_nod
         join_node.merge_context(begin->get_context());
     }
 
-    std::ignore = join_node.post_execution.execute(exec::execution_status::completed);
+    std::ignore = join_node.post_execution.execute(state.any_failed ? exec::task_result::failed : exec::task_result::succeeded);
 }
 
 }

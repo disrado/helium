@@ -33,8 +33,11 @@ set(helium_headers
     core/execution/thread_pool.hpp
     core/execution/thread_dispatcher.hpp
     core/execution/scheduler.hpp
-    core/execution/task_graph.hpp
-    core/execution/task_node.hpp
+    core/execution/task/task_base.hpp
+    core/execution/task/async_task.hpp
+    core/execution/task/ticking_task.hpp
+    core/execution/task/task_graph.hpp
+    core/execution/task/task_node.hpp
     systems/logging.hpp
     systems/system_base.hpp
     systems/root_system.hpp)
@@ -50,8 +53,11 @@ set(helium_sources
     core/execution/thread_pool.cpp
     core/execution/thread_dispatcher.cpp
     core/execution/scheduler.cpp
-    core/execution/task_graph.cpp
-    core/execution/task_node.cpp
+    core/execution/task/task_base.cpp
+    core/execution/task/async_task.cpp
+    core/execution/task/ticking_task.cpp
+    core/execution/task/task_graph.cpp
+    core/execution/task/task_node.cpp
     systems/logging.cpp
     systems/system_base.cpp)
 
@@ -87,7 +93,7 @@ set(test_sources
     core/test/event_bus_test.cpp
     core/execution/test/run_test.cpp
     core/execution/test/scheduler_test.cpp
-    core/execution/test/task_graph_test.cpp
+    core/execution/task/test/task_graph_test.cpp
     core/execution/test/thread_pool_test.cpp
     core/execution/test/thread_dispatcher_test.cpp
     core/execution/action/test/action_test.cpp
