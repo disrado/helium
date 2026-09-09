@@ -1,37 +1,29 @@
 #pragma once
 
+#include "core/execution/dispatcher.hpp"
 #include "core/execution/task/task_base.hpp"
 
-#include <atomic>
-#include <chrono>
+#include <future>
 #include <memory>
 #include <optional>
+#include <stop_token>
 
 
 namespace he::exec
 {
 
-class dispatcher;
-
-
-class async_task final: public task_base, public std::enable_shared_from_this<async_task>
+class async_task final: public task_base
 {
 public:
-    task_id id;
-    task_definition definition;
+    async_task(task_definition definition, std::shared_ptr<dispatcher> dispatcher_ptr);
 
-    std::atomic<bool> completed{ false };     // the only thing that's actually cross-thread — worker
-                                               // thread writes it, main thread polls it in tick()
-    task_result result{};
+    auto tick() -> void override;
+    auto get_status() -> std::optional<task_result> override;
+    auto cancel() -> void override;
 
-    std::chrono::steady_clock::time_point trigger_point{};
-    std::chrono::steady_clock::duration interval{};
-    std::optional<std::size_t> repetitions_left{ 1 };
-
-public:
-    auto dispatch(dispatcher& d) -> void;
-    auto tick(dispatcher& d) -> bool override;
-    auto deliver_if_finished() -> void override;
+private:
+    std::future<task_result> _future;
+    std::stop_source stop_source;
 };
 
 }

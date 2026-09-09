@@ -1,6 +1,5 @@
 #include "ticking_task.hpp"
 
-#include <tuple>
 #include <utility>
 
 
@@ -23,67 +22,40 @@ auto invoke_definition(const std::stop_token& token, const he::exec::ticking_def
 namespace he::exec
 {
 
-auto ticking_task::tick(dispatcher&) -> bool
+ticking_task::ticking_task(ticking_definition definition)
+    : definition{ std::move(definition) }
 {
-    switch (_phase)
-    {
-        case phase::finished:
-            return true;
+}
 
-        case phase::dormant:
-        {
-            if (std::chrono::steady_clock::now() < trigger_point)
-            {
-                return false;
-            }
 
-            _phase = phase::running;
-
-            break;
-        }
-
-        case phase::running:
-            break;
-    }
-
+auto ticking_task::tick() -> void
+{
     const auto status{ invoke_definition(stop_source.get_token(), definition) };
 
     if (status == tick_result::running)
     {
-        return false;   // stays `running` — next process() call retries immediately, no delay; interval
-                        // only applies between a terminal result and the next cycle
+        return;   // _result stays nullopt — next tick() call retries immediately, no delay
     }
-
-    task_result terminal{};
 
     switch (status)
     {
-        case tick_result::succeeded: terminal = task_result::succeeded; break;
-        case tick_result::failed:    terminal = task_result::failed;    break;
-        case tick_result::cancelled: terminal = task_result::cancelled; break;
+        case tick_result::succeeded: _result = task_result::succeeded; break;
+        case tick_result::failed:    _result = task_result::failed;    break;
+        case tick_result::cancelled: _result = task_result::cancelled; break;
         default: std::unreachable();   // tick_result::running already handled above
     }
+}
 
-    const auto exhausted{ repetitions_left && --repetitions_left.value() == 0 };
-    const auto stop_requested_before{ stop_source.get_token().stop_requested() };
 
-    std::ignore = on_complete.try_execute(terminal);
+auto ticking_task::get_status() -> std::optional<task_result>
+{
+    return _result;
+}
 
-    // on_complete may self-cancel us reentrantly (calls scheduler::cancel(id)) — that only flags the
-    // stop token now, never phase directly, so a freshly-raised flag here means exactly that happened
-    const auto cancelled_during_delivery{ !stop_requested_before && stop_source.get_token().stop_requested() };
 
-    if (exhausted || terminal == task_result::cancelled || cancelled_during_delivery)
-    {
-        _phase = phase::finished;
-
-        return true;
-    }
-
-    trigger_point = std::chrono::steady_clock::now() + interval;
-    _phase = phase::dormant;
-
-    return false;
+auto ticking_task::cancel() -> void
+{
+    stop_source.request_stop();
 }
 
 }

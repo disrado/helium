@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -84,6 +85,7 @@ public:
     static auto create() -> std::shared_ptr<scheduler>;
 
     auto set_dispatcher(std::unique_ptr<dispatcher> new_dispatcher) -> void;
+    auto get_dispatcher() -> std::shared_ptr<dispatcher>;
 
     auto post(sync_task_request request) -> task_id;
     auto post(async_task_request request) -> task_id;
@@ -96,10 +98,26 @@ protected:
     scheduler() = default;
 
 private:
-    auto next_task_id() -> task_id;
+    // one repeating series' scheduling policy; delay/interval/repetitions never live on task_base
+    struct scheduled_task
+    {
+        std::shared_ptr<task_base> cycle_instance;   // null = idle, non-null = this cycle in flight
+        std::function<std::shared_ptr<task_base>()> make_cycle;
+        std::chrono::steady_clock::duration interval{};
+        std::optional<std::size_t> repetitions_left{ 1 };
+        std::optional<std::chrono::steady_clock::time_point> trigger_point;   // meaningful only while idle
+        task_completion on_complete;
+        bool cancel_requested{ false };   // set by cancel() on an in-flight cycle; forces termination
+                                           // over reschedule once that cycle's result comes in
+    };
 
 private:
-    std::unordered_map<task_id, std::shared_ptr<task_base>> _tasks;
+    auto next_task_id() -> task_id;
+    auto acquire_cycle(task_id id) -> std::shared_ptr<task_base>;
+    auto finalize_cycle(task_id id, task_result result) -> void;
+
+private:
+    std::unordered_map<task_id, scheduled_task> _tasks;
     std::mutex _mutex;
 
     bool _is_shutting_down{ false };
@@ -107,9 +125,9 @@ private:
     std::atomic<std::shared_ptr<dispatcher>> _dispatcher{ std::make_shared<thread_dispatcher>() };
     std::atomic<task_id> _next_id{ invalid_task_id + 1 };
 
-    // reusable buffer for task processing, because tasks can add/cancel themselves/other tasks
+    // reusable buffer for process(), because tasks can add/cancel themselves/other tasks
     // cleared, not reconstructed, so capacity stabilizes over time
-    std::vector<std::pair<task_id, std::shared_ptr<task_base>>> _snapshot;
+    std::vector<task_id> _snapshot;
 };
 
 }

@@ -53,7 +53,6 @@ set(helium_sources
     core/execution/thread_pool.cpp
     core/execution/thread_dispatcher.cpp
     core/execution/scheduler.cpp
-    core/execution/task/task_base.cpp
     core/execution/task/async_task.cpp
     core/execution/task/ticking_task.cpp
     core/execution/task/task_graph.cpp

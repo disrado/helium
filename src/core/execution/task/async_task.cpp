@@ -1,8 +1,5 @@
 #include "async_task.hpp"
 
-#include "core/execution/dispatcher.hpp"
-
-#include <tuple>
 #include <utility>
 
 
@@ -25,85 +22,41 @@ auto invoke_definition(const std::stop_token& token, const he::exec::task_defini
 namespace he::exec
 {
 
-auto async_task::dispatch(dispatcher& d) -> void
+async_task::async_task(task_definition definition, std::shared_ptr<dispatcher> dispatcher_ptr)
 {
-    _phase = phase::running;
+    // shared_ptr, not by-value: std::promise is move-only, but dispatch() takes std::function,
+    // which requires a copyable target
+    const auto promise{ std::make_shared<std::promise<task_result>>() };
+    _future = promise->get_future();
 
-    d.dispatch([self{ shared_from_this() }, token{ stop_source.get_token() }] () mutable
-    {
-        self->result = invoke_definition(token, self->definition);
-        self->completed.store(true, std::memory_order_release);
-    });
+    dispatcher_ptr->dispatch(
+        [definition{ std::move(definition) }, token{ stop_source.get_token() }, promise] () mutable
+        {
+            promise->set_value(invoke_definition(token, definition));
+        });
 }
 
 
-auto async_task::tick(dispatcher& d) -> bool
+auto async_task::tick() -> void
 {
-    switch (_phase)
-    {
-        case phase::finished:
-            return true;
-
-        case phase::dormant:
-        {
-            if (std::chrono::steady_clock::now() < trigger_point)
-            {
-                return false;
-            }
-
-            dispatch(d);
-
-            return false;
-        }
-
-        case phase::running:
-        {
-            if (!completed.load(std::memory_order_acquire))
-            {
-                return false;
-            }
-
-            const auto exhausted{ repetitions_left && --repetitions_left.value() == 0 };
-            const auto stop_requested_before{ stop_source.get_token().stop_requested() };
-
-            std::ignore = on_complete.try_execute(result);
-
-            // on_complete may self-cancel us reentrantly (calls scheduler::cancel(id)) — that only
-            // flags the stop token now, never phase directly, so a freshly-raised flag here means
-            // exactly that happened
-            const auto cancelled_during_delivery{ !stop_requested_before && stop_source.get_token().stop_requested() };
-
-            if (exhausted || result == task_result::cancelled || cancelled_during_delivery)
-            {
-                _phase = phase::finished;
-
-                return true;
-            }
-
-            trigger_point = std::chrono::steady_clock::now() + interval;
-            completed.store(false, std::memory_order_relaxed);   // safe: previous worker already exited before we got here
-            _phase = phase::dormant;
-
-            return false;
-        }
-    }
-
-    std::unreachable();
+    // no-op — the worker thread drives progress, not the caller
 }
 
 
-auto async_task::deliver_if_finished() -> void
+auto async_task::get_status() -> std::optional<task_result>
 {
-    if (_phase != phase::running || !completed.load(std::memory_order_acquire))
+    if (!_future.valid() || _future.wait_for(std::chrono::seconds{ 0 }) != std::future_status::ready)
     {
-        return;   // still genuinely in flight, or already dealt with — nothing to flush
+        return std::nullopt;
     }
 
-    std::ignore = on_complete.try_execute(result);
+    return _future.get();
+}
 
-    _phase = phase::finished;   // shutdown: deliver the one known result, never reschedule another cycle;
-                                // a reentrant self-cancel from on_complete just flags the stop token —
-                                // harmless here, we're already ending this entry unconditionally
+
+auto async_task::cancel() -> void
+{
+    stop_source.request_stop();
 }
 
 }
