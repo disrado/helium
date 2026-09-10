@@ -10,11 +10,42 @@
 #include <any>
 #include <atomic>
 #include <chrono>
+#include <memory>
 #include <stop_token>
 #include <string>
 #include <thread>
 #include <tuple>
 #include <utility>
+
+
+namespace
+{
+
+class passthrough_dispatcher final: public he::exec::dispatcher
+{
+public:
+    passthrough_dispatcher(std::shared_ptr<he::exec::dispatcher> real, std::shared_ptr<std::atomic<bool>> delivered)
+        : real{ std::move(real) }
+        , delivered{ std::move(delivered) }
+    {
+    }
+
+    auto dispatch(std::function<void()> work) -> void override
+    {
+        real->dispatch(
+            [work{ std::move(work) }, delivered{ delivered }] () mutable
+            {
+                work();
+                delivered->store(true);
+            });
+    }
+
+private:
+    std::shared_ptr<he::exec::dispatcher> real;
+    std::shared_ptr<std::atomic<bool>> delivered;
+};
+
+}
 
 
 TEST_CASE("run")
@@ -39,6 +70,10 @@ TEST_CASE("run")
     {
         auto started{ std::atomic<bool>{ false } };
         auto observed_cancel{ std::atomic<bool>{ false } };
+
+        const auto delivered{ std::make_shared<std::atomic<bool>>(false) };
+        he::exec::scheduler::instance().set_dispatcher(
+            std::make_unique<passthrough_dispatcher>(he::exec::scheduler::instance().get_dispatcher(), delivered));
 
         auto token{
             he::run(
@@ -67,6 +102,10 @@ TEST_CASE("run")
         }
 
         REQUIRE(observed_cancel);
+
+        while (!delivered->load())
+        {
+        }
 
         he::exec::scheduler::instance().tick();
     }
