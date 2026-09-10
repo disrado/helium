@@ -7,11 +7,41 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <atomic>
-#include <chrono>
+#include <memory>
 #include <optional>
 #include <stop_token>
 #include <string>
 #include <thread>
+
+
+namespace
+{
+
+class passthrough_dispatcher final: public he::exec::dispatcher
+{
+public:
+    passthrough_dispatcher(std::shared_ptr<he::exec::dispatcher> real, std::shared_ptr<std::atomic<bool>> delivered)
+        : real{ std::move(real) }
+        , delivered{ std::move(delivered) }
+    {
+    }
+
+    auto dispatch(std::function<void()> work) -> void override
+    {
+        real->dispatch(
+            [work{ std::move(work) }, delivered{ delivered }] () mutable
+            {
+                work();
+                delivered->store(true);
+            });
+    }
+
+private:
+    std::shared_ptr<he::exec::dispatcher> real;
+    std::shared_ptr<std::atomic<bool>> delivered;
+};
+
+}
 
 
 TEST_CASE("sequential_composite")
@@ -402,6 +432,10 @@ TEST_CASE("sequential_composite cancel")
         auto then_ran{ false };
         auto otherwise_ran{ false };
 
+        const auto delivered{ std::make_shared<std::atomic<bool>>(false) };
+        he::exec::scheduler::instance().set_dispatcher(
+            std::make_unique<passthrough_dispatcher>(he::exec::scheduler::instance().get_dispatcher(), delivered));
+
         auto token{
             he::run(
                 he::sequential_composite{
@@ -442,7 +476,9 @@ TEST_CASE("sequential_composite cancel")
         {
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        while (!delivered->load())
+        {
+        }
 
         he::exec::scheduler::instance().tick();
 
