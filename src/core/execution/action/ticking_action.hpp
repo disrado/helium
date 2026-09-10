@@ -13,8 +13,7 @@ class ticking_action: public exec::action_base<ticking_action>
 public:
     using state = exec::basic_action::state;
     using context = exec::basic_action::context;
-    using result = exec::tick_result;   // independent of basic_action::result (task_result) — ticking
-                                        // genuinely needs `running`, which a one-shot action never does
+    using result = exec::tick_result;
 
     ticking_action() = default;
 
@@ -22,7 +21,7 @@ public:
         requires std::is_invocable_r_v<result, callable_t, const context&, std::stop_token>
     explicit ticking_action(callable_t definition);
 
-    virtual auto execute(exec::task_node& self_node, std::stop_token token = {}) -> result;
+    virtual auto tick(exec::task_node& self_node, std::stop_token token = {}) -> result;
 
 protected:
     auto setup_node(exec::task_node& self_node) -> exec::task_node& override;

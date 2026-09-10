@@ -8,7 +8,7 @@
 namespace he
 {
 
-auto ticking_action::execute(exec::task_node& self_node, std::stop_token token) -> result
+auto ticking_action::tick(exec::task_node& self_node, std::stop_token token) -> result
 {
     return _definition.try_execute(self_node.get_context(), std::move(token)).value_or(result::failed);
 }
@@ -20,7 +20,7 @@ auto ticking_action::setup_node(exec::task_node& self_node) -> exec::task_node&
         .definition{ exec::ticking_definition{
             [self{ std::static_pointer_cast<ticking_action>(shared_from_this()) }, &self_node] (std::stop_token token) -> exec::tick_result
             {
-                return self->execute(self_node, std::move(token));
+                return self->tick(self_node, std::move(token));
             }
         } },
         .on_complete{}

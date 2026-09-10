@@ -27,7 +27,7 @@ public:
 
     virtual auto execute(exec::task_node& self_node, std::stop_token token = {}) -> result;
 
-private:
+protected:
     auto setup_node(exec::task_node& self_node) -> exec::task_node& override;
 
 private:

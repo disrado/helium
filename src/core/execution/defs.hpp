@@ -39,16 +39,9 @@ enum class task_result : uint8_t
 };
 
 
-// The one place "not done yet" is a legal value — ticking definitions only. Every other boundary in
-// the system (sync/async definitions, all three request types' on_complete, task_graph's broadcast
-// type) uses task_result. Keeping `running` scoped to exactly this one type is deliberate: an earlier
-// version let a completion-delivery type also carry `running`, which is dead weight everywhere it's
-// actually consumed (nothing ever calls on_complete mid-flight) and reopens the exact "illegal state is
-// representable" hole this redesign exists to close. Don't widen task_result to include `running`, and
-// don't let tick_result leak past the one definition signature that needs it.
 enum class tick_result : uint8_t
 {
-    running,
+    keep_going,
     succeeded,
     failed,
     cancelled

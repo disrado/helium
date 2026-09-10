@@ -13,9 +13,9 @@ class task_base
 public:
     virtual ~task_base() = default;
 
-    virtual auto tick() -> void = 0;
-    virtual auto get_status() -> std::optional<task_result> = 0;   // pure query, safe anytime
-    virtual auto cancel() -> void = 0;
+    virtual auto tick() -> void;
+    virtual auto get_result() -> std::optional<task_result> = 0;
+    virtual auto cancel() -> void;
 };
 
 }

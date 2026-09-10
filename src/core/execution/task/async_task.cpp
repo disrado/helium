@@ -24,8 +24,7 @@ namespace he::exec
 
 async_task::async_task(task_definition definition, std::shared_ptr<dispatcher> dispatcher_ptr)
 {
-    // shared_ptr, not by-value: std::promise is move-only, but dispatch() takes std::function,
-    // which requires a copyable target
+    // shared_ptr, not by-value dispatch() takes std::function, which requires a copyable
     const auto promise{ std::make_shared<std::promise<task_result>>() };
     _future = promise->get_future();
 
@@ -37,13 +36,7 @@ async_task::async_task(task_definition definition, std::shared_ptr<dispatcher> d
 }
 
 
-auto async_task::tick() -> void
-{
-    // no-op — the worker thread drives progress, not the caller
-}
-
-
-auto async_task::get_status() -> std::optional<task_result>
+auto async_task::get_result() -> std::optional<task_result>
 {
     if (!_future.valid() || _future.wait_for(std::chrono::seconds{ 0 }) != std::future_status::ready)
     {

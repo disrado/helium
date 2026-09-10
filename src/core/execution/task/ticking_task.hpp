@@ -15,7 +15,7 @@ public:
     explicit ticking_task(ticking_definition definition);
 
     auto tick() -> void override;
-    auto get_status() -> std::optional<task_result> override;
+    auto get_result() -> std::optional<task_result> override;
     auto cancel() -> void override;
 
 private:

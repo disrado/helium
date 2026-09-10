@@ -17,8 +17,7 @@ class async_task final: public task_base
 public:
     async_task(task_definition definition, std::shared_ptr<dispatcher> dispatcher_ptr);
 
-    auto tick() -> void override;
-    auto get_status() -> std::optional<task_result> override;
+    auto get_result() -> std::optional<task_result> override;
     auto cancel() -> void override;
 
 private:

@@ -13,7 +13,7 @@ auto invoke_definition(const std::stop_token& token, const he::exec::ticking_def
         return he::exec::tick_result::cancelled;
     }
 
-    return definition.try_execute(token).value_or(he::exec::tick_result::failed);
+    return definition.execute(token);
 }
 
 }
@@ -30,24 +30,36 @@ ticking_task::ticking_task(ticking_definition definition)
 
 auto ticking_task::tick() -> void
 {
-    const auto status{ invoke_definition(stop_source.get_token(), definition) };
-
-    if (status == tick_result::running)
+    switch (invoke_definition(stop_source.get_token(), definition))
     {
-        return;   // _result stays nullopt — next tick() call retries immediately, no delay
-    }
-
-    switch (status)
-    {
-        case tick_result::succeeded: _result = task_result::succeeded; break;
-        case tick_result::failed:    _result = task_result::failed;    break;
-        case tick_result::cancelled: _result = task_result::cancelled; break;
-        default: std::unreachable();   // tick_result::running already handled above
+        case tick_result::keep_going:
+        {
+            return;
+        }
+        case tick_result::succeeded:
+        {
+            _result = task_result::succeeded;
+            break;
+        }
+        case tick_result::failed:
+        {
+            _result = task_result::failed;
+            break;
+        }
+        case tick_result::cancelled:
+        {
+            _result = task_result::cancelled;
+            break;
+        }
+        default:
+        {
+            std::unreachable();
+        }
     }
 }
 
 
-auto ticking_task::get_status() -> std::optional<task_result>
+auto ticking_task::get_result() -> std::optional<task_result>
 {
     return _result;
 }

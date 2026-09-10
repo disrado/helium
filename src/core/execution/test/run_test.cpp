@@ -68,7 +68,7 @@ TEST_CASE("run")
 
         REQUIRE(observed_cancel);
 
-        he::exec::scheduler::instance().process();
+        he::exec::scheduler::instance().tick();
     }
 
     SECTION("works with a custom action_base subclass, not just he::action")
@@ -109,7 +109,7 @@ TEST_CASE("run")
 
         while (!done)
         {
-            he::exec::scheduler::instance().process();
+            he::exec::scheduler::instance().tick();
         }
 
         REQUIRE(done);
@@ -144,7 +144,7 @@ TEST_CASE("run")
         {
         }
 
-        he::exec::scheduler::instance().process();
+        he::exec::scheduler::instance().tick();
 
         REQUIRE(finished);
     }
@@ -175,7 +175,7 @@ TEST_CASE("run")
 
         while (!second_ran || !third_ran)
         {
-            he::exec::scheduler::instance().process();
+            he::exec::scheduler::instance().tick();
         }
 
         REQUIRE(second_ran);
@@ -258,7 +258,7 @@ TEST_CASE("run example")
 
         while (!done)
         {
-            he::exec::scheduler::instance().process();
+            he::exec::scheduler::instance().tick();
         }
     }
 }

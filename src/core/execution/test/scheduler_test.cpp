@@ -143,7 +143,7 @@ TEST_CASE("scheduler ticking task, single repetition")
                 .on_complete{ [&on_complete_ran] (he::exec::task_result) { on_complete_ran = true; } }
             });
 
-        instance->process();
+        instance->tick();
 
         REQUIRE(definition_ran);
         REQUIRE(on_complete_ran);
@@ -166,7 +166,7 @@ TEST_CASE("scheduler ticking task, single repetition")
                 .on_complete{ [&order] (he::exec::task_result) { order += "b"; } }
             });
 
-        instance->process();
+        instance->tick();
 
         REQUIRE(order == "ab");
     }
@@ -198,7 +198,7 @@ TEST_CASE("scheduler ticking task, single repetition")
                 .on_complete{ [] (he::exec::task_result) {} }
             });
 
-        instance->process();
+        instance->tick();
 
         REQUIRE(order == "12");
     }
@@ -230,11 +230,11 @@ TEST_CASE("scheduler ticking task, single repetition")
                 .on_complete{ [] (he::exec::task_result) {} }
             });
 
-        instance->process();
+        instance->tick();
 
         REQUIRE(order == "a");
 
-        instance->process();
+        instance->tick();
 
         REQUIRE(order == "ab");
     }
@@ -264,10 +264,10 @@ TEST_CASE("scheduler ticking task repetitions")
                 })
         };
 
-        instance->process();
-        instance->process();
-        instance->process();
-        instance->process();   // one extra call — must be a no-op, entry should already be gone
+        instance->tick();
+        instance->tick();
+        instance->tick();
+        instance->tick();   // one extra call — must be a no-op, entry should already be gone
 
         REQUIRE(tick_count == 3);
         REQUIRE(complete_count == 3);
@@ -291,18 +291,15 @@ TEST_CASE("scheduler ticking task repetitions")
 
         for (auto i{ 0 }; i < 10; ++i)
         {
-            instance->process();
+            instance->tick();
         }
 
         REQUIRE(complete_count == 10);
 
         REQUIRE(instance->cancel(id));
+        REQUIRE(complete_count == 10);   // cancel() only flags it now; resolves on the next tick()
 
-        // cancel() lands while idle (dormant, between cycles) — that delivers `cancelled` synchronously,
-        // one more on_complete beyond the 10 successful cycles, per the documented idle-cancel contract
-        REQUIRE(complete_count == 11);
-
-        instance->process();
+        instance->tick();
 
         REQUIRE(complete_count == 11);
     }
@@ -311,7 +308,7 @@ TEST_CASE("scheduler ticking task repetitions")
 
 TEST_CASE("scheduler async task")
 {
-    SECTION("starts before the first process() call")
+    SECTION("starts before the first tick() call")
     {
         auto work_done{ std::atomic<bool>{ false } };
 
@@ -356,7 +353,7 @@ TEST_CASE("scheduler async task")
         REQUIRE_FALSE(on_complete_ran);
     }
 
-    SECTION("on_complete after process")
+    SECTION("on_complete after tick")
     {
         auto on_complete_ran{ false };
 
@@ -370,7 +367,7 @@ TEST_CASE("scheduler async task")
 
         while (!on_complete_ran)
         {
-            instance->process();
+            instance->tick();
         }
 
         REQUIRE(on_complete_ran);
@@ -396,7 +393,7 @@ TEST_CASE("scheduler async task")
             });
 
         while (!work_done) {}
-        instance->process();
+        instance->tick();
 
         REQUIRE(worker_thread_id != std::this_thread::get_id());
     }
@@ -421,7 +418,7 @@ TEST_CASE("scheduler async task")
 
         while (!on_complete_ran)
         {
-            instance->process();
+            instance->tick();
         }
 
         REQUIRE(on_complete_thread_id == std::this_thread::get_id());
@@ -454,7 +451,7 @@ TEST_CASE("scheduler async task")
 
         while (!second_ran)
         {
-            instance->process();
+            instance->tick();
         }
 
         REQUIRE(second_ran);
@@ -478,7 +475,7 @@ TEST_CASE("scheduler async task")
 
         while (completed_count != 3)
         {
-            instance->process();
+            instance->tick();
         }
 
         REQUIRE(completed_count == 3);
@@ -488,7 +485,7 @@ TEST_CASE("scheduler async task")
 
 TEST_CASE("scheduler async task timing")
 {
-    SECTION("initial_delay defers the first dispatch")
+    SECTION("delay defers the first dispatch")
     {
         auto work_done{ std::atomic<bool>{ false } };
 
@@ -503,17 +500,17 @@ TEST_CASE("scheduler async task timing")
                         return he::exec::task_result::succeeded;
                     } },
                 .on_complete{ [] (he::exec::task_result) {} },
-                .initial_delay{ std::chrono::milliseconds(200) }
+                .delay{ std::chrono::milliseconds(200) }
             });
 
-        instance->process();
-        instance->process();
+        instance->tick();
+        instance->tick();
 
         REQUIRE_FALSE(work_done);
 
         while (!work_done)
         {
-            instance->process();
+            instance->tick();
         }
     }
 }
@@ -540,7 +537,7 @@ TEST_CASE("scheduler set_dispatcher")
 
         while (!on_complete_ran)
         {
-            instance->process();
+            instance->tick();
         }
 
         REQUIRE(dispatcher->dispatched);
@@ -548,13 +545,13 @@ TEST_CASE("scheduler set_dispatcher")
 }
 
 
-TEST_CASE("scheduler process")
+TEST_CASE("scheduler tick")
 {
     SECTION("empty is a no-op")
     {
         auto instance{ he::exec::scheduler::create() };
 
-        instance->process();
+        instance->tick();
     }
 
     SECTION("mixed resolve in one call")
@@ -582,7 +579,7 @@ TEST_CASE("scheduler process")
 
         while (!async_completed)
         {
-            instance->process();
+            instance->tick();
         }
 
         REQUIRE(ticking_ran);
@@ -628,12 +625,12 @@ TEST_CASE("scheduler cancel")
                 })
         };
 
-        instance->process();
+        instance->tick();
 
         REQUIRE_FALSE(instance->cancel(id));
     }
 
-    SECTION("skips ticking task, delivered synchronously")
+    SECTION("cancel before first tick skips the definition, resolves cancelled")
     {
         auto ran{ false };
         auto on_complete_status{ std::optional<he::exec::task_result>{} };
@@ -655,12 +652,12 @@ TEST_CASE("scheduler cancel")
 
         instance->cancel(id);
 
-        // idle (never dispatched) — request_cancel() delivers cancelled synchronously
-        REQUIRE(on_complete_status == he::exec::task_result::cancelled);
+        REQUIRE_FALSE(on_complete_status.has_value());   // cancel() only flags it; resolves on tick()
 
-        instance->process();
+        instance->tick();
 
         REQUIRE_FALSE(ran);
+        REQUIRE(on_complete_status == he::exec::task_result::cancelled);
     }
 
     SECTION("cancel after real completion has no effect")
@@ -688,7 +685,7 @@ TEST_CASE("scheduler cancel")
 
         while (!on_complete_status.has_value())
         {
-            instance->process();
+            instance->tick();
         }
 
         // status is decided once, at the point the definition actually finishes — a cancel() that
@@ -712,7 +709,7 @@ TEST_CASE("scheduler cancel")
 
         while (!on_complete_ran)
         {
-            instance->process();
+            instance->tick();
         }
 
         REQUIRE_FALSE(instance->cancel(id));
@@ -749,7 +746,7 @@ TEST_CASE("scheduler cancel")
             });
 
         instance->cancel(first_id);
-        instance->process();
+        instance->tick();
 
         REQUIRE_FALSE(first_ran);
         REQUIRE(second_ran);
@@ -788,7 +785,7 @@ TEST_CASE("scheduler cancel")
 
         while (!on_complete_status.has_value())
         {
-            instance->process();
+            instance->tick();
         }
 
         REQUIRE(observed_cancel);
@@ -824,13 +821,12 @@ TEST_CASE("scheduler cancel")
 
         while (complete_count.load() == 0)
         {
-            instance->process();
+            instance->tick();
         }
 
-        // give a would-be extra cycle a chance to (wrongly) start
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        instance->process();
-
+        // no sleep-and-hope needed: finalize_task_instance() delivers on_complete and, for a cancelled
+        // result, erases the entry within that same synchronous tick() call — by the time the
+        // loop above observes complete_count == 1, a would-be extra cycle is already impossible
         REQUIRE(complete_count.load() == 1);
         REQUIRE_FALSE(instance->cancel(id));
     }
@@ -854,8 +850,8 @@ TEST_CASE("scheduler cancel")
                 .repetitions{ 5 }
             });
 
-        instance->process();
-        instance->process();
+        instance->tick();
+        instance->tick();
 
         REQUIRE(complete_count == 1);
         REQUIRE_FALSE(instance->cancel(id));
@@ -884,7 +880,7 @@ TEST_CASE("scheduler cancel")
                 .repetitions{ 5 }
             });
 
-        instance->process();
+        instance->tick();
 
         REQUIRE(complete_count == 1);
         REQUIRE_FALSE(instance->cancel(id));
@@ -908,7 +904,7 @@ TEST_CASE("scheduler shutdown")
                     .on_complete{ [&on_complete_ran] (he::exec::task_result) { on_complete_ran = true; } }
                 });
 
-            // deliberately no instance->process() call — relying purely on ~scheduler()
+            // deliberately no instance->tick() call — relying purely on ~scheduler()
         }
 
         REQUIRE(on_complete_ran);
@@ -928,18 +924,14 @@ TEST_CASE("scheduler shutdown")
                         [&tick_count] (std::stop_token) -> he::exec::tick_result
                         {
                             ++tick_count;
-                            return he::exec::tick_result::running;
+                            return he::exec::tick_result::keep_going;
                         } },
                     .on_complete{ [&on_complete_status] (he::exec::task_result status) { on_complete_status = status; } }
                 });
 
-            instance->process();
+            instance->tick();
 
             REQUIRE(tick_count == 1);
-
-            // instance destroyed here, mid-cycle (phase::running, already returned `running` once) —
-            // this is the second genuinely-dropped case alongside in-flight async: nothing calls
-            // tick() on it again, so on_complete is never delivered
         }
 
         REQUIRE_FALSE(on_complete_status.has_value());
@@ -968,9 +960,6 @@ TEST_CASE("scheduler shutdown")
                                 });
                         } }
                 });
-
-            // deliberately no instance->process() call — ~scheduler()'s notification loop delivers
-            // on_complete, which reenters post() while the object is already shutting down
         }
 
         REQUIRE(observed);
@@ -1006,9 +995,6 @@ TEST_CASE("scheduler shutdown")
                         } }
                 });
 
-            // no instance->process() call — reentrant post() above happens during ~scheduler()'s
-            // notification loop; the shutdown check must run before the eager dispatch, so the
-            // second task's definition must never actually execute
         }
 
         REQUIRE(first_observed);
@@ -1017,51 +1003,54 @@ TEST_CASE("scheduler shutdown")
 
     SECTION("task outliving a non-joining dispatcher's scheduler is dropped, not delivered")
     {
-        // mimics gd_dispatcher's shape: hands work to an independent thread with zero lifetime
-        // coupling to the scheduler — no join, no wait, unlike thread_dispatcher's jthread pool
         class detaching_dispatcher final: public he::exec::dispatcher
         {
         public:
+            explicit detaching_dispatcher(std::shared_ptr<std::atomic<bool>> delivery_attempted)
+                : delivery_attempted{ std::move(delivery_attempted) }
+            {
+            }
+
             auto dispatch(std::function<void()> work) -> void override
             {
-                std::thread{ std::move(work) }.detach();
+                std::thread{
+                    [work{ std::move(work) }, delivery_attempted{ delivery_attempted }] () mutable
+                    {
+                        work();   // includes async_task's promise->set_value() delivery attempt
+                        delivery_attempted->store(true);
+                    } }.detach();
             }
+
+        private:
+            std::shared_ptr<std::atomic<bool>> delivery_attempted;
         };
 
         const auto started{ std::make_shared<std::atomic<bool>>(false) };
-        const auto finished{ std::make_shared<std::atomic<bool>>(false) };
         const auto on_complete_ran{ std::make_shared<std::atomic<bool>>(false) };
+        const auto delivery_attempted{ std::make_shared<std::atomic<bool>>(false) };
 
         {
             auto instance{ he::exec::scheduler::create() };
-            instance->set_dispatcher(std::make_unique<detaching_dispatcher>());
+            instance->set_dispatcher(std::make_unique<detaching_dispatcher>(delivery_attempted));
 
             instance->post(
                 he::exec::async_task_request{
                     .definition{
-                        [started, finished] (std::stop_token) -> he::exec::task_result
+                        [started] (std::stop_token) -> he::exec::task_result
                         {
                             started->store(true);
                             std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                            finished->store(true);
                             return he::exec::task_result::succeeded;
                         } },
                     .on_complete{ [on_complete_ran] (he::exec::task_result) { on_complete_ran->store(true); } }
                 });
 
-            // wait until the worker is actually inside the definition (past invoke_definition's
-            // own pre-dispatch cancellation check) before destroying — otherwise ~scheduler()'s
-            // request_stop() sweep can race ahead of thread startup and cancel it before it ever runs
             while (!started->load()) {}
-
-            // instance destroyed here, mid-sleep — this task never checks its own stop_token
-            // (non-cooperative), so it keeps running regardless, genuinely outliving the scheduler
         }
 
-        while (!finished->load()) {}
-
-        // give the worker a moment to reach its (now-skipped) delivery attempt
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        // deterministic: waits for the wrapped work item (definition + promise->set_value attempt)
+        // to actually finish, instead of sleeping a fixed duration and hoping it was long enough
+        while (!delivery_attempted->load()) {}
 
         REQUIRE_FALSE(on_complete_ran->load());
     }

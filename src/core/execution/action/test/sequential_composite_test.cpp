@@ -303,7 +303,7 @@ TEST_CASE("sequential_composite with async step")
 
         while (!done)
         {
-            he::exec::scheduler::instance().process();
+            he::exec::scheduler::instance().tick();
         }
 
         REQUIRE(order == "ab");
@@ -344,7 +344,7 @@ TEST_CASE("sequential_composite thread marshaling")
 
         while (!continuation_ran)
         {
-            he::exec::scheduler::instance().process();
+            he::exec::scheduler::instance().tick();
         }
 
         REQUIRE(worker_thread_id.has_value());
@@ -392,7 +392,7 @@ TEST_CASE("sequential_composite cancel")
 
         REQUIRE(observed_cancel);
 
-        he::exec::scheduler::instance().process();
+        he::exec::scheduler::instance().tick();
     }
 
     SECTION("mid-flight cancel with and_then/or_else does not crash or clobber state")
@@ -444,7 +444,7 @@ TEST_CASE("sequential_composite cancel")
 
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
-        he::exec::scheduler::instance().process();
+        he::exec::scheduler::instance().tick();
 
         REQUIRE_FALSE(then_ran);
         REQUIRE_FALSE(otherwise_ran);

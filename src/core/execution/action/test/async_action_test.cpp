@@ -108,7 +108,7 @@ TEST_CASE("async_action cancel")
 
         REQUIRE(observed_cancel);
 
-        he::exec::scheduler::instance().process();
+        he::exec::scheduler::instance().tick();
     }
 
     SECTION("cancel from another thread")
@@ -147,7 +147,7 @@ TEST_CASE("async_action cancel")
 
         REQUIRE(observed_cancel);
 
-        he::exec::scheduler::instance().process();
+        he::exec::scheduler::instance().tick();
     }
 }
 
@@ -171,7 +171,7 @@ TEST_CASE("async_action chaining")
 
         while (!then_ran)
         {
-            he::exec::scheduler::instance().process();
+            he::exec::scheduler::instance().tick();
         }
 
         REQUIRE(then_ran);
@@ -194,7 +194,7 @@ TEST_CASE("async_action chaining")
 
         while (!otherwise_ran)
         {
-            he::exec::scheduler::instance().process();
+            he::exec::scheduler::instance().tick();
         }
 
         REQUIRE(otherwise_ran);
@@ -224,7 +224,7 @@ TEST_CASE("async_action chaining")
 
         while (!otherwise_ran)
         {
-            he::exec::scheduler::instance().process();
+            he::exec::scheduler::instance().tick();
         }
 
         REQUIRE_FALSE(then_ran);

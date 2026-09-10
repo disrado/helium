@@ -32,6 +32,7 @@ set(helium_headers
     core/execution/dispatcher.hpp
     core/execution/thread_pool.hpp
     core/execution/thread_dispatcher.hpp
+    core/execution/task_request.hpp
     core/execution/scheduler.hpp
     core/execution/task/task_base.hpp
     core/execution/task/async_task.hpp
@@ -53,6 +54,7 @@ set(helium_sources
     core/execution/thread_pool.cpp
     core/execution/thread_dispatcher.cpp
     core/execution/scheduler.cpp
+    core/execution/task/task_base.cpp
     core/execution/task/async_task.cpp
     core/execution/task/ticking_task.cpp
     core/execution/task/task_graph.cpp
