@@ -45,16 +45,25 @@ auto action::setup_node(exec::task_node& self_node) -> exec::task_node&
         {
             switch (result)
             {
-                case exec::task_result::succeeded: self_node.state = exec::action_state::succeeded; break;
-                case exec::task_result::failed:    self_node.state = exec::action_state::failed;    break;
-                case exec::task_result::cancelled: self_node.state = exec::action_state::cancelled; break;
-            }
-
-            if (self_node.cancel_requested)
-            {
-                self_node.state = exec::action_state::cancelled;
-
-                return;
+                case exec::task_result::succeeded:
+                {
+                    self_node.state = exec::action_state::succeeded;
+                    break;
+                }
+                case exec::task_result::failed:
+                {
+                    self_node.state = exec::action_state::failed;
+                    break;
+                }
+                case exec::task_result::cancelled:
+                {
+                    self_node.state = exec::action_state::cancelled;
+                    break;
+                }
+                default:
+                {
+                    std::unreachable();
+                }
             }
 
             self_node.resolve_links();

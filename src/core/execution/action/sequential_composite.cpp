@@ -36,12 +36,10 @@ auto sequential_composite::setup_node(exec::task_node& self_node) -> exec::task_
     completion_node.post_execution.bind([&completion_node] (exec::task_result) { completion_node.resolve_links(); });
 
     self_node.post_execution.bind(
-        [&self_node, first{ &segments.front().start }] (exec::task_result)
+        [&self_node, first{ &segments.front().start }] (exec::task_result result)
         {
-            if (self_node.cancel_requested)
+            if (result != exec::task_result::succeeded)
             {
-                self_node.state = exec::action_state::cancelled;
-
                 return;
             }
 
@@ -76,31 +74,21 @@ auto sequential_composite::setup_step_node(
     step.end.post_execution.bind(
         [&self_node, &completion_node, step_start{ &step.start }, next_step_start] (exec::task_result)
         {
-            if (self_node.cancel_requested)
-            {
-                self_node.state = exec::action_state::cancelled;
-                completion_node.state = exec::action_state::cancelled;
-
-                std::ignore = completion_node.post_execution.execute(exec::task_result::cancelled);
-
-                return;
-            }
-
             const auto step_result{ step_start->state.load() };
 
             if (next_step_start && step_result == exec::action_state::succeeded)
             {
                 next_step_start->set_context(step_start->get_context());
                 next_step_start->activate();
-            }
-            else
-            {
-                self_node.state = step_result;
-                completion_node.state = step_result;
-                completion_node.set_context(step_start->get_context());
 
-                std::ignore = completion_node.post_execution.execute(to_task_result(step_result));
+                return;
             }
+
+            self_node.state = step_result;
+            completion_node.state = step_result;
+            completion_node.set_context(step_start->get_context());
+
+            std::ignore = completion_node.post_execution.execute(to_task_result(step_result));
         });
 }
 

@@ -27,11 +27,10 @@ auto parallel_composite::setup_node(exec::task_node& self_node) -> exec::task_no
     join_node.post_execution.bind([&join_node] (exec::task_result) { join_node.resolve_links(); });
 
     self_node.post_execution.bind(
-        [&self_node, &join_node, branches] (exec::task_result)
+        [&self_node, &join_node, branches] (exec::task_result result)
         {
-            if (self_node.cancel_requested)
+            if (result != exec::task_result::succeeded)
             {
-                self_node.state = exec::action_state::cancelled;
                 join_node.state = exec::action_state::cancelled;
 
                 std::ignore = join_node.post_execution.execute(exec::task_result::cancelled);
@@ -73,9 +72,7 @@ auto parallel_composite::setup_branch_node(
     branch.end.post_execution.bind(
         [&self_node, &join_node, branch_start{ &branch.start }, state] (exec::task_result)
         {
-            const auto cancel_requested{ self_node.cancel_requested.load() };
-
-            if (!cancel_requested && branch_start->state != exec::action_state::succeeded)
+            if (branch_start->state != exec::action_state::succeeded)
             {
                 state->any_failed = true;
             }
@@ -85,24 +82,22 @@ auto parallel_composite::setup_branch_node(
                 return;
             }
 
-            if (cancel_requested)
-            {
-                self_node.state = exec::action_state::cancelled;
-                join_node.state = exec::action_state::cancelled;
-
-                std::ignore = join_node.post_execution.execute(exec::task_result::cancelled);
-            }
-            else
-            {
-                resolve_join(self_node, join_node, *state);
-            }
+            resolve_join(self_node, join_node, *state);
         });
 }
 
 
 auto parallel_composite::resolve_join(exec::task_node& self_node, exec::task_node& join_node, const join_state& state) -> void
 {
-    self_node.state = state.any_failed ? exec::action_state::failed : exec::action_state::succeeded;
+    const auto outcome{
+        self_node.cancel_requested
+            ? exec::task_result::cancelled
+            : (state.any_failed ? exec::task_result::failed : exec::task_result::succeeded)
+    };
+
+    self_node.state = outcome == exec::task_result::cancelled
+        ? exec::action_state::cancelled
+        : (state.any_failed ? exec::action_state::failed : exec::action_state::succeeded);
     join_node.state = self_node.state.load();
 
     for (auto* begin : state.step_starts)
@@ -110,7 +105,7 @@ auto parallel_composite::resolve_join(exec::task_node& self_node, exec::task_nod
         join_node.merge_context(begin->get_context());
     }
 
-    std::ignore = join_node.post_execution.execute(state.any_failed ? exec::task_result::failed : exec::task_result::succeeded);
+    std::ignore = join_node.post_execution.execute(outcome);
 }
 
 }

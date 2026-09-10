@@ -50,13 +50,6 @@ auto async_action::setup_node(exec::task_node& self_node) -> exec::task_node&
                 case exec::task_result::cancelled: self_node.state = exec::action_state::cancelled; break;
             }
 
-            if (self_node.cancel_requested)
-            {
-                self_node.state = exec::action_state::cancelled;
-
-                return;
-            }
-
             self_node.resolve_links();
         });
 

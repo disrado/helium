@@ -125,6 +125,15 @@ auto task_graph::pop_next() -> task_node*
 
 auto task_graph::run_node(task_node& current) -> void
 {
+    if (current.cancel_requested)
+    {
+        current.state = action_state::cancelled;
+
+        std::ignore = current.post_execution.execute(task_result::cancelled);
+
+        return;
+    }
+
     if (!current.pre_condition.try_execute().value_or(true))
     {
         return;
