@@ -24,6 +24,24 @@ public:
     bool dispatched{ false };
 };
 
+
+class deferred_dispatcher final: public he::exec::dispatcher
+{
+public:
+    auto dispatch(std::function<void()> work) -> void override
+    {
+        pending = std::move(work);
+    }
+
+    auto run_pending() -> void
+    {
+        pending();
+    }
+
+private:
+    std::function<void()> pending;
+};
+
 }
 
 
@@ -1012,6 +1030,43 @@ TEST_CASE("scheduler cancel")
         }
 
         REQUIRE(observed_cancel);
+        REQUIRE(on_complete_status == he::exec::task_result::cancelled);
+    }
+
+    SECTION("cancel before dispatch skips definition")
+    {
+        auto ran{ false };
+        auto on_complete_status{ std::optional<he::exec::task_result>{} };
+
+        auto instance{ he::exec::scheduler::create() };
+
+        auto owned_dispatcher{ std::make_unique<deferred_dispatcher>() };
+        auto* const dispatcher{ owned_dispatcher.get() };
+        instance->set_dispatcher(std::move(owned_dispatcher));
+
+        const auto id{
+            instance->post(
+                he::exec::async_task_request{
+                    .definition{
+                        [&ran] (std::stop_token)
+                        {
+                            ran = true;
+                            return he::exec::task_result::succeeded;
+                        } },
+                    .on_complete{ [&on_complete_status] (he::exec::task_result status) { on_complete_status = status; } }
+                })
+        };
+
+        REQUIRE(instance->cancel(id));
+
+        dispatcher->run_pending();
+
+        while (!on_complete_status.has_value())
+        {
+            instance->tick();
+        }
+
+        REQUIRE_FALSE(ran);
         REQUIRE(on_complete_status == he::exec::task_result::cancelled);
     }
 
