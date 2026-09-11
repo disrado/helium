@@ -392,6 +392,10 @@ TEST_CASE("sequential_composite cancel")
         auto started{ std::atomic<bool>{ false } };
         auto observed_cancel{ std::atomic<bool>{ false } };
 
+        const auto delivered{ std::make_shared<std::atomic<bool>>(false) };
+        he::exec::scheduler::instance().set_dispatcher(
+            std::make_unique<passthrough_dispatcher>(he::exec::scheduler::instance().get_dispatcher(), delivered));
+
         auto token{
             he::run(
                 he::sequential_composite{
@@ -421,6 +425,10 @@ TEST_CASE("sequential_composite cancel")
         }
 
         REQUIRE(observed_cancel);
+
+        while (!delivered->load())
+        {
+        }
 
         he::exec::scheduler::instance().tick();
     }
