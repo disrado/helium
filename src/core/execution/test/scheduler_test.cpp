@@ -890,7 +890,7 @@ TEST_CASE("scheduler cancel")
 
 TEST_CASE("scheduler shutdown")
 {
-    SECTION("delivers completion on destruction")
+    SECTION("does not deliver completion on destruction, only tick() can")
     {
         auto on_complete_ran{ false };
 
@@ -904,10 +904,10 @@ TEST_CASE("scheduler shutdown")
                     .on_complete{ [&on_complete_ran] (he::exec::task_result) { on_complete_ran = true; } }
                 });
 
-            // deliberately no instance->tick() call — relying purely on ~scheduler()
+            // deliberately no instance->tick() call — destruction alone must not deliver
         }
 
-        REQUIRE(on_complete_ran);
+        REQUIRE_FALSE(on_complete_ran);
     }
 
     SECTION("notifies a mid-cycle ticking task too, not just async")
@@ -935,70 +935,6 @@ TEST_CASE("scheduler shutdown")
         }
 
         REQUIRE_FALSE(on_complete_status.has_value());
-    }
-
-    SECTION("rejects post from on_complete during destruction")
-    {
-        auto observed{ false };
-        auto id_during_shutdown{ he::exec::invalid_task_id };
-
-        {
-            auto instance{ he::exec::scheduler::create() };
-            instance->set_dispatcher(std::make_unique<recording_dispatcher>());
-
-            instance->post(
-                he::exec::async_task_request{
-                    .definition{ [] (std::stop_token) { return he::exec::task_result::succeeded; } },
-                    .on_complete{
-                        [&instance, &observed, &id_during_shutdown] (he::exec::task_result)
-                        {
-                            observed = true;
-                            id_during_shutdown = instance->post(
-                                he::exec::sync_task_request{
-                                    .definition{ [] (std::stop_token) { return he::exec::task_result::succeeded; } },
-                                    .on_complete{ [] (he::exec::task_result) {} }
-                                });
-                        } }
-                });
-        }
-
-        REQUIRE(observed);
-        REQUIRE(id_during_shutdown == he::exec::invalid_task_id);
-    }
-
-    SECTION("rejects a zero-delay async post during shutdown before it can dispatch")
-    {
-        auto first_observed{ false };
-        auto second_definition_ran{ false };
-
-        {
-            auto instance{ he::exec::scheduler::create() };
-            instance->set_dispatcher(std::make_unique<recording_dispatcher>());
-
-            instance->post(
-                he::exec::async_task_request{
-                    .definition{ [] (std::stop_token) { return he::exec::task_result::succeeded; } },
-                    .on_complete{
-                        [&instance, &first_observed, &second_definition_ran] (he::exec::task_result)
-                        {
-                            first_observed = true;
-                            instance->post(
-                                he::exec::async_task_request{
-                                    .definition{
-                                        [&second_definition_ran] (std::stop_token)
-                                        {
-                                            second_definition_ran = true;
-                                            return he::exec::task_result::succeeded;
-                                        } },
-                                    .on_complete{ [] (he::exec::task_result) {} }
-                                });
-                        } }
-                });
-
-        }
-
-        REQUIRE(first_observed);
-        REQUIRE_FALSE(second_definition_ran);
     }
 
     SECTION("task outliving a non-joining dispatcher's scheduler is dropped, not delivered")

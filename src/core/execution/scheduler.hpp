@@ -44,8 +44,6 @@ private:
     };
 
 public:
-    ~scheduler() override;
-
     static auto create() -> std::shared_ptr<scheduler>;
 
     auto set_dispatcher(std::unique_ptr<dispatcher> new_dispatcher) -> void;
@@ -71,13 +69,9 @@ private:
     auto is_eligible_for_starting(const scheduled_task& task) const -> bool;
     auto is_cancelled_while_idle(task_id id) -> bool;
 
-    auto drain() -> void;
-
 private:
     std::unordered_map<task_id, scheduled_task> _tasks;
     std::mutex _mutex;
-
-    bool _is_shutting_down{ false };
 
     std::atomic<std::shared_ptr<dispatcher>> _dispatcher{ std::make_shared<thread_dispatcher>() };
     std::atomic<task_id> _next_id{ invalid_task_id + 1 };
