@@ -8,22 +8,6 @@
 #include <tuple>
 
 
-namespace
-{
-
-auto invoke_definition(const std::stop_token& token, const he::exec::task_definition& definition) -> he::exec::task_result
-{
-    if (token.stop_requested())
-    {
-        return he::exec::task_result::cancelled;
-    }
-
-    return definition.try_execute(token).value_or(he::exec::task_result::failed);
-}
-
-}
-
-
 namespace he::exec
 {
 
@@ -52,7 +36,7 @@ auto scheduler::get_dispatcher() -> std::shared_ptr<dispatcher>
 
 auto scheduler::post(sync_task_request request) -> task_id
 {
-    const auto status{ invoke_definition(std::stop_token{}, request.definition) };
+    const auto status{ request.definition.execute(std::stop_token{}) };
 
     std::ignore = request.on_complete.try_execute(status);
 

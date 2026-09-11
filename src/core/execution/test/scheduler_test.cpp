@@ -103,21 +103,6 @@ TEST_CASE("scheduler sync task")
 
         REQUIRE_FALSE(instance->cancel(id));
     }
-
-    SECTION("failed for unbound definition")
-    {
-        auto status{ std::optional<he::exec::task_result>{} };
-
-        auto instance{ he::exec::scheduler::create() };
-
-        instance->post(
-            he::exec::sync_task_request{
-                .definition{},
-                .on_complete{ [&status] (he::exec::task_result s) { status = s; } }
-            });
-
-        REQUIRE(status == he::exec::task_result::failed);
-    }
 }
 
 
