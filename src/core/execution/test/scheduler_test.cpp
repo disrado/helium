@@ -513,6 +513,229 @@ TEST_CASE("scheduler async task timing")
             instance->tick();
         }
     }
+
+    SECTION("interval defers next repetition")
+    {
+        auto complete_count{ std::atomic<int>{ 0 } };
+
+        auto instance{ he::exec::scheduler::create() };
+
+        instance->post(
+            he::exec::async_task_request{
+                .definition{ [] (std::stop_token) { return he::exec::task_result::succeeded; } },
+                .on_complete{ [&complete_count] (he::exec::task_result) { ++complete_count; } },
+                .interval{ std::chrono::milliseconds(200) },
+                .repetitions{ std::nullopt }
+            });
+
+        while (complete_count.load() == 0)
+        {
+            instance->tick();
+        }
+
+        REQUIRE(complete_count.load() == 1);
+
+        instance->tick();
+        instance->tick();
+
+        REQUIRE(complete_count.load() == 1);
+
+        while (complete_count.load() == 1)
+        {
+            instance->tick();
+        }
+
+        REQUIRE(complete_count.load() == 2);
+    }
+
+    SECTION("repetitions{N} fires N times, then gone")
+    {
+        auto complete_count{ std::atomic<int>{ 0 } };
+
+        auto instance{ he::exec::scheduler::create() };
+
+        const auto id{
+            instance->post(
+                he::exec::async_task_request{
+                    .definition{ [] (std::stop_token) { return he::exec::task_result::succeeded; } },
+                    .on_complete{ [&complete_count] (he::exec::task_result) { ++complete_count; } },
+                    .repetitions{ 3 }
+                })
+        };
+
+        while (complete_count.load() < 3)
+        {
+            instance->tick();
+        }
+
+        REQUIRE(complete_count.load() == 3);
+        REQUIRE_FALSE(instance->cancel(id));
+    }
+
+    SECTION("repetitions{nullopt} repeats without cancel")
+    {
+        auto complete_count{ std::atomic<int>{ 0 } };
+
+        auto instance{ he::exec::scheduler::create() };
+
+        instance->post(
+            he::exec::async_task_request{
+                .definition{ [] (std::stop_token) { return he::exec::task_result::succeeded; } },
+                .on_complete{ [&complete_count] (he::exec::task_result) { ++complete_count; } },
+                .repetitions{ std::nullopt }
+            });
+
+        while (complete_count.load() < 5)
+        {
+            instance->tick();
+        }
+
+        REQUIRE(complete_count.load() == 5);
+    }
+
+    SECTION("delay gates only the first fire")
+    {
+        auto complete_count{ std::atomic<int>{ 0 } };
+        auto first_fire_at{ std::chrono::steady_clock::time_point{} };
+        auto second_fire_at{ std::chrono::steady_clock::time_point{} };
+
+        auto instance{ he::exec::scheduler::create() };
+
+        instance->post(
+            he::exec::async_task_request{
+                .definition{
+                    [&complete_count, &first_fire_at, &second_fire_at] (std::stop_token)
+                    {
+                        const auto now{ std::chrono::steady_clock::now() };
+
+                        if (complete_count.load() == 0)
+                        {
+                            first_fire_at = now;
+                        }
+                        else
+                        {
+                            second_fire_at = now;
+                        }
+
+                        ++complete_count;
+
+                        return he::exec::task_result::succeeded;
+                    } },
+                .on_complete{ [] (he::exec::task_result) {} },
+                .delay{ std::chrono::milliseconds(500) },
+                .interval{ std::chrono::milliseconds(10) },
+                .repetitions{ std::nullopt }
+            });
+
+        while (complete_count.load() < 2)
+        {
+            instance->tick();
+        }
+
+        REQUIRE((second_fire_at - first_fire_at) < std::chrono::milliseconds(250));
+    }
+}
+
+
+TEST_CASE("scheduler ticking task timing")
+{
+    SECTION("delay defers first tick")
+    {
+        auto tick_count{ 0 };
+
+        auto instance{ he::exec::scheduler::create() };
+
+        instance->post(
+            he::exec::ticking_task_request{
+                .definition{
+                    [&tick_count] (std::stop_token) -> he::exec::tick_result
+                    {
+                        ++tick_count;
+                        return he::exec::tick_result::succeeded;
+                    } },
+                .on_complete{ [] (he::exec::task_result) {} },
+                .delay{ std::chrono::milliseconds(200) }
+            });
+
+        instance->tick();
+        instance->tick();
+
+        REQUIRE(tick_count == 0);
+
+        while (tick_count == 0)
+        {
+            instance->tick();
+        }
+    }
+
+    SECTION("interval defers next repetition")
+    {
+        auto tick_count{ 0 };
+
+        auto instance{ he::exec::scheduler::create() };
+
+        instance->post(
+            he::exec::ticking_task_request{
+                .definition{
+                    [&tick_count] (std::stop_token) -> he::exec::tick_result
+                    {
+                        ++tick_count;
+                        return he::exec::tick_result::succeeded;
+                    } },
+                .on_complete{ [] (he::exec::task_result) {} },
+                .interval{ std::chrono::milliseconds(200) },
+                .repetitions{ std::nullopt }
+            });
+
+        instance->tick();
+
+        REQUIRE(tick_count == 1);
+
+        instance->tick();
+        instance->tick();
+
+        REQUIRE(tick_count == 1);
+
+        while (tick_count == 1)
+        {
+            instance->tick();
+        }
+
+        REQUIRE(tick_count == 2);
+    }
+
+    SECTION("delay gates only the first fire")
+    {
+        auto tick_count{ 0 };
+        auto first_fire_at{ std::chrono::steady_clock::time_point{} };
+        auto second_fire_at{ std::chrono::steady_clock::time_point{} };
+
+        auto instance{ he::exec::scheduler::create() };
+
+        instance->post(
+            he::exec::ticking_task_request{
+                .definition{
+                    [&tick_count, &first_fire_at, &second_fire_at] (std::stop_token) -> he::exec::tick_result
+                    {
+                        ++tick_count;
+
+                        (tick_count == 1 ? first_fire_at : second_fire_at) = std::chrono::steady_clock::now();
+
+                        return he::exec::tick_result::succeeded;
+                    } },
+                .on_complete{ [] (he::exec::task_result) {} },
+                .delay{ std::chrono::milliseconds(500) },
+                .interval{ std::chrono::milliseconds(10) },
+                .repetitions{ std::nullopt }
+            });
+
+        while (tick_count < 2)
+        {
+            instance->tick();
+        }
+
+        REQUIRE((second_fire_at - first_fire_at) < std::chrono::milliseconds(250));
+    }
 }
 
 
