@@ -21,37 +21,21 @@ public:
     template <std::derived_from<system_base> system_t>
     auto remove_child() -> bool;
 
-    auto get_subsystems() -> const std::map<type_index_t, std::shared_ptr<system_base>>&;
-
 public:
     virtual auto tick(double dt) -> void;
-
-private:
-    std::map<type_index_t, std::shared_ptr<system_base>> _subsystems;
-};
-
-struct system_instantiated final
-{
-    type_index_t type_index;
-    std::weak_ptr<system_base> instance;
-};
-
-struct system_destroyed final
-{
-    type_index_t type_index;
 };
 
 template <std::derived_from<system_base> system_t>
-auto system_base::add_child(auto&&... args) -> system_t&
+auto system_base::add_child(auto&&... _) -> system_t&
 {
-    auto system{ std::make_shared<system_t>(std::forward<decltype(args)>(args)...) };
-
-    return *system;
+    // stab
+    return nullptr;
 }
 
 template <std::derived_from<system_base> system_t>
 auto system_base::remove_child() -> bool
 {
+    // stab
     return false;
 }
 }

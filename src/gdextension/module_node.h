@@ -11,9 +11,9 @@
 namespace he
 {
 
-class system_node: public godot::Node
+class module_node: public godot::Node
 {
-    GDCLASS(system_node, godot::Node)
+    GDCLASS(module_node, godot::Node)
 
 public:
     static auto _bind_methods() -> void;

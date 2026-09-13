@@ -1,7 +1,7 @@
 #include "register_types.h"
 
 #include "gdextension/core/execution/gd_dispatcher.h"
-#include "system_node.h"
+#include "module_node.h"
 
 #include "core/execution/scheduler.hpp"
 
@@ -23,7 +23,7 @@ void initialize_helium_module(ModuleInitializationLevel p_level)
         return;
     }
 
-    GDREGISTER_CLASS(he::system_node);
+    GDREGISTER_CLASS(he::module_node);
 
     he::exec::scheduler::instance().set_dispatcher(std::make_unique<he::gd_dispatcher>());
 }
