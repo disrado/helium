@@ -12,7 +12,7 @@ auto module_node::_bind_methods() -> void
 
 auto module_node::_ready() -> void
 {
-    _root = std::make_shared<root_system>();
+    system_tree::instance();
 }
 
 }

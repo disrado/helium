@@ -1,9 +1,7 @@
 ﻿#pragma once
 
-#include "core/type_traits/type_index.hpp"
 #include "core/event_bus.hpp"
 
-#include <map>
 #include <memory>
 
 

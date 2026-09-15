@@ -1,11 +1,9 @@
 #pragma once
 
-#include "systems/root_system.hpp"
+#include "systems/system_tree.hpp"
 
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/wrapped.hpp>
-
-#include <memory>
 
 
 namespace he
@@ -19,9 +17,6 @@ public:
     static auto _bind_methods() -> void;
 
     auto _ready() -> void override;
-
-private:
-    std::shared_ptr<root_system> _root;
 };
 
 }

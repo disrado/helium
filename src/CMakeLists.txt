@@ -40,8 +40,10 @@ set(helium_headers
     core/execution/task/task_graph.hpp
     core/execution/task/task_node.hpp
     systems/logging.hpp
+    systems/subsystem.hpp
+    systems/system.hpp
     systems/system_base.hpp
-    systems/root_system.hpp)
+    systems/system_tree.hpp)
 
 set(helium_sources
     core/execution/action/action_base.cpp
@@ -60,7 +62,8 @@ set(helium_sources
     core/execution/task/task_graph.cpp
     core/execution/task/task_node.cpp
     systems/logging.cpp
-    systems/system_base.cpp)
+    systems/system_base.cpp
+    systems/system_tree.cpp)
 
 add_library(helium STATIC ${helium_sources})
 
