@@ -88,6 +88,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(test_sources
     systems/test/logging_test.cpp
+    systems/test/system_base_test.cpp
+    systems/test/system_tree_test.cpp
     core/containers/test/ordered_tree_test.cpp
     core/type_traits/test/type_index_test.cpp
     core/type_traits/test/type_name_test.cpp
