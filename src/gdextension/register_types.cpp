@@ -1,6 +1,7 @@
 #include "register_types.h"
 
 #include "gdextension/core/execution/gd_dispatcher.h"
+#include "gdextension/core/gd_logging.h"
 #include "module_node.h"
 
 #include "core/execution/scheduler.hpp"
@@ -14,11 +15,9 @@
 #include <memory>
 
 
-using namespace godot;
-
-void initialize_helium_module(ModuleInitializationLevel p_level)
+void initialize_helium_module(godot::ModuleInitializationLevel p_level)
 {
-    if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE)
+    if (p_level != godot::MODULE_INITIALIZATION_LEVEL_SCENE)
     {
         return;
     }
@@ -26,11 +25,13 @@ void initialize_helium_module(ModuleInitializationLevel p_level)
     GDREGISTER_CLASS(he::module_node);
 
     he::exec::scheduler::instance().set_dispatcher(std::make_unique<he::gd_dispatcher>());
+
+    he::register_gd_logging_dispatchers();
 }
 
-void uninitialize_helium_module(ModuleInitializationLevel p_level)
+void uninitialize_helium_module(godot::ModuleInitializationLevel p_level)
 {
-    if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE)
+    if (p_level != godot::MODULE_INITIALIZATION_LEVEL_SCENE)
     {
         return;
     }
@@ -46,7 +47,7 @@ GDExtensionBool GDE_EXPORT helium_gdextension_init(GDExtensionInterfaceGetProcAd
 
     init_obj.register_initializer(initialize_helium_module);
     init_obj.register_terminator(uninitialize_helium_module);
-    init_obj.set_minimum_library_initialization_level(MODULE_INITIALIZATION_LEVEL_SCENE);
+    init_obj.set_minimum_library_initialization_level(godot::MODULE_INITIALIZATION_LEVEL_SCENE);
 
     return init_obj.init();
 }

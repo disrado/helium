@@ -1,7 +1,8 @@
 add_library(helium_gdextension SHARED
     register_types.cpp
     module_node.cpp
-    core/execution/gd_dispatcher.cpp)
+    core/execution/gd_dispatcher.cpp
+    core/gd_logging.cpp)
 
 target_link_libraries(helium_gdextension PRIVATE helium godot::cpp)
 

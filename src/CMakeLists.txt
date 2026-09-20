@@ -14,6 +14,7 @@ set(helium_headers
     core/singleton.hpp
     core/event_bus.hpp
     core/string_literal.hpp
+    core/logging.hpp
     core/containers/ordered_tree.hpp
     core/type_traits/type_index.hpp
     core/type_traits/type_name.hpp
@@ -39,13 +40,13 @@ set(helium_headers
     core/execution/task/ticking_task.hpp
     core/execution/task/task_graph.hpp
     core/execution/task/task_node.hpp
-    systems/logging.hpp
     systems/subsystem.hpp
     systems/system.hpp
     systems/system_base.hpp
     systems/system_tree.hpp)
 
 set(helium_sources
+    core/logging.cpp
     core/execution/action/action_base.cpp
     core/execution/action/action.cpp
     core/execution/action/async_action.cpp
@@ -61,7 +62,6 @@ set(helium_sources
     core/execution/task/ticking_task.cpp
     core/execution/task/task_graph.cpp
     core/execution/task/task_node.cpp
-    systems/logging.cpp
     systems/system_base.cpp
     systems/system_tree.cpp)
 
@@ -87,7 +87,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(test_sources
-    systems/test/logging_test.cpp
     systems/test/system_base_test.cpp
     systems/test/system_tree_test.cpp
     core/containers/test/ordered_tree_test.cpp
@@ -97,6 +96,7 @@ set(test_sources
     core/delegate/test/delegate_test.cpp
     core/delegate/test/multicast_delegate_test.cpp
     core/test/event_bus_test.cpp
+    core/test/logging_test.cpp
     core/execution/test/run_test.cpp
     core/execution/test/scheduler_test.cpp
     core/execution/task/test/task_graph_test.cpp
